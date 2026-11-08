@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Claude Code de A à Z : projet fil rouge
 
-## Getting Started
+Ce dépôt accompagne la formation vidéo **« Claude Code de A à Z : coder avec un agent IA (2026) »**.
 
-First, run the development server:
+Tout au long de la formation, nous construisons ensemble, avec Claude Code, une **application de réservation** complète : créneaux, disponibilités, paiement Stripe en mode test, tests automatisés et mise en production.
+
+## Prérequis
+
+- **Node.js 20.9 ou plus récent** (version LTS conseillée, voir le fichier `.nvmrc`)
+- **Git**
+- **Claude Code**, installé et connecté (module 1 de la formation)
+
+## Démarrer
 
 ```bash
+git clone https://github.com/espero-soft/claude-code-de-a-a-z.git
+cd claude-code-de-a-a-z
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez ensuite [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Important :** clonez le projet dans un dossier dont le chemin ne contient pas le caractère « : ». Sur macOS et Linux, ce caractère empêche npm de trouver ses outils (erreur `next: command not found`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Organisation du dépôt
 
-## Learn More
+| Où | Contenu |
+|---|---|
+| Branche `main` | Le point de départ : un projet Next.js vierge, versions figées |
+| Tags `fin-module-XX` | L'état du projet à la fin de chaque module (les corrigés) |
 
-To learn more about Next.js, take a look at the following resources:
+Les tags sont ajoutés au fil de la formation.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Repartir de l'état d'un module
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Vous êtes perdu, ou vous voulez reprendre à un module précis ? Créez une branche à partir du tag correspondant :
 
-## Deploy on Vercel
+```bash
+git fetch --tags
+git switch -c ma-version fin-module-03
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## La stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Next.js** (App Router) et **TypeScript**
+- **Tailwind CSS**
+- Ajoutés pendant la formation : **Prisma** (SQLite en local, PostgreSQL en production), **Stripe** en mode test, **Vitest** et **Playwright** pour les tests
+
+Les versions sont figées dans `package.json`, pour que le projet reste identique à celui des vidéos.
+
+## Le fichier AGENTS.md
+
+Next.js a créé un fichier `AGENTS.md` destiné aux agents IA comme Claude Code. Gardez-le : nous verrons au module 3 comment il fonctionne avec `CLAUDE.md`.
+
+## Une autre stack ?
+
+La méthode enseignée fonctionne avec n'importe quelle stack : Laravel, Django, Symfony, Rails... Vous aimeriez voir le projet dans une autre technologie ? Dites-le dans les questions et réponses de la formation.
