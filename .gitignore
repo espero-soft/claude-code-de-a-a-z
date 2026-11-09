@@ -32,6 +32,15 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# base SQLite locale : ne jamais commiter
+dev.db
+*.db
+*.db-journal
+
+# client Prisma généré (recréé par prisma generate)
+/src/generated/
 
 # vercel
 .vercel

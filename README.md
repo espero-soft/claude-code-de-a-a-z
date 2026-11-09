@@ -23,6 +23,21 @@ Ouvrez ensuite [http://localhost:3000](http://localhost:3000) dans votre navigat
 
 > **Important :** clonez le projet dans un dossier dont le chemin ne contient pas le caractère « : ». Sur macOS et Linux, ce caractère empêche npm de trouver ses outils (erreur `next: command not found`).
 
+## Base de données
+
+Le projet utilise **Prisma** avec une base **SQLite** locale (fichier `dev.db`, jamais commité).
+
+```bash
+cp .env.example .env                 # DATABASE_URL="file:./dev.db"
+npx prisma migrate dev               # crée dev.db et applique les migrations
+npm run db:seed                      # insère les 4 salles (relançable sans doublon)
+npx prisma studio                    # facultatif : parcourir les données
+```
+
+- Après une modification de `prisma/schema.prisma` : `npx prisma migrate dev --name <nom-du-changement>`.
+- Repartir d'une base vide : `npm run db:reset`, puis `npm run db:seed`.
+- Les prix et montants sont stockés **en centimes** (entiers) : 25 € s'écrit `2500`.
+
 ## Organisation du dépôt
 
 | Où | Contenu |

@@ -1,0 +1,54 @@
+// Schéma de la base, d'après le cahier des charges (entités Salle et Réservation).
+// Tous les montants sont stockés en centimes (entiers) pour éviter les erreurs d'arrondi.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Salle {
+  id                String        @id @default(cuid())
+  slug              String        @unique
+  nom               String
+  description       String
+  capacite          Int // nombre de personnes
+  prixHeureCentimes Int // prix par heure, en centimes
+  photo             String?
+  active            Boolean       @default(true)
+  equipements       Equipement[]
+  reservations      Reservation[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+// SQLite ne stocke pas de listes : les équipements ont leur table, reliée aux salles.
+model Equipement {
+  id     String  @id @default(cuid())
+  nom    String  @unique
+  salles Salle[]
+}
+
+enum StatutReservation {
+  EN_ATTENTE
+  CONFIRMEE
+  ANNULEE
+}
+
+model Reservation {
+  id                   String            @id @default(cuid())
+  salleId              String
+  salle                Salle             @relation(fields: [salleId], references: [id])
+  debut                DateTime // date et heure de début
+  fin                  DateTime // date et heure de fin
+  nomClient            String
+  emailClient          String
+  statut               StatutReservation @default(EN_ATTENTE)
+  montantTotalCentimes Int
+  createdAt            DateTime          @default(now())
+
+  @@index([salleId, debut])
+}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { salles } from "@/data/salles";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Nos salles de réunion",
@@ -14,8 +16,6 @@ const formatPrix = new Intl.NumberFormat("fr-FR", {
 });
 
 export default function SallesPage() {
-  const sallesActives = salles.filter((salle) => salle.active);
-
   return (
     <main className="flex-1 bg-slate-50 px-6 py-16 text-slate-900">
       <div className="mx-auto max-w-5xl">
@@ -33,43 +33,70 @@ export default function SallesPage() {
           l&apos;heure, du lundi au vendredi, de 8 h à 20 h.
         </p>
 
-        <ul className="mt-10 grid gap-6 sm:grid-cols-2">
-          {sallesActives.map((salle) => (
-            <li
-              key={salle.id}
-              className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <div className="flex items-baseline justify-between gap-4">
-                <h2 className="text-xl font-semibold">{salle.nom}</h2>
-                <p className="shrink-0 text-lg font-semibold text-orange-600">
-                  {formatPrix.format(salle.prixParHeure)}
-                  <span className="text-sm font-normal text-slate-500">
-                    {" "}
-                    / heure
-                  </span>
-                </p>
-              </div>
-              <p className="mt-1 text-sm text-slate-500">
-                Jusqu&apos;à {salle.capacite} personnes
-              </p>
-              <p className="mt-4 text-slate-700">{salle.description}</p>
-              <ul
-                aria-label="Équipements"
-                className="mt-6 flex flex-wrap gap-2"
-              >
-                {salle.equipements.map((equipement) => (
-                  <li
-                    key={equipement}
-                    className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
-                  >
-                    {equipement}
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
+        {/* La lecture en base se fait à chaque requête : le titre part tout
+            de suite, la liste arrive dès que la requête est terminée. */}
+        <Suspense
+          fallback={<p className="mt-10 text-slate-500">Chargement des salles…</p>}
+        >
+          <ListeSalles />
+        </Suspense>
       </div>
     </main>
+  );
+}
+
+async function ListeSalles() {
+  // better-sqlite3 répond de façon synchrone : sans connection(), Next
+  // exécuterait la requête au build et figerait la liste dans la page.
+  await connection();
+
+  const salles = await prisma.salle.findMany({
+    where: { active: true },
+    include: { equipements: { orderBy: { nom: "asc" } } },
+    orderBy: { capacite: "asc" },
+  });
+
+  if (salles.length === 0) {
+    return (
+      <p className="mt-10 text-slate-600">
+        Aucune salle n&apos;est disponible pour le moment.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="mt-10 grid gap-6 sm:grid-cols-2">
+      {salles.map((salle) => (
+        <li
+          key={salle.id}
+          className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="text-xl font-semibold">{salle.nom}</h2>
+            <p className="shrink-0 text-lg font-semibold text-orange-600">
+              {formatPrix.format(salle.prixHeureCentimes / 100)}
+              <span className="text-sm font-normal text-slate-500">
+                {" "}
+                / heure
+              </span>
+            </p>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Jusqu&apos;à {salle.capacite} personnes
+          </p>
+          <p className="mt-4 text-slate-700">{salle.description}</p>
+          <ul aria-label="Équipements" className="mt-6 flex flex-wrap gap-2">
+            {salle.equipements.map((equipement) => (
+              <li
+                key={equipement.id}
+                className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
+              >
+                {equipement.nom}
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
   );
 }
