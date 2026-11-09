@@ -104,6 +104,16 @@ async function ListeSalles() {
               </li>
             ))}
           </ul>
+          {/* relative z-10 : au-dessus du lien de la carte */}
+          <div className="mt-auto pt-6">
+            <Link
+              href={`/salles/${salle.id}/reserver`}
+              aria-label={`Réserver ${salle.nom}`}
+              className="relative z-10 inline-flex items-center rounded-full bg-orange-600 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
+            >
+              Réserver
+            </Link>
+          </div>
         </li>
       ))}
     </ul>
