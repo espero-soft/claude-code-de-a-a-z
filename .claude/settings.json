@@ -21,5 +21,20 @@
       "Bash(git push *)",
       "Bash(git reset --hard *)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/lint-fichier.sh",
+            "timeout": 60,
+            "statusMessage": "ESLint sur le fichier modifié..."
+          }
+        ]
+      }
+    ]
   }
 }
