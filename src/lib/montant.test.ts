@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculerMontant } from "./montant";
+import { calculerMontant } from "@/lib/montant";
 
 // Salle à 40 € de l'heure.
 const PRIX = 4000;
