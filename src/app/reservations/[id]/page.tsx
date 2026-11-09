@@ -65,12 +65,19 @@ async function Confirmation({ id }: { id: string }) {
     notFound();
   }
 
+  // Seuls les textes générés prennent une majuscule initiale : le nom et
+  // l'e-mail saisis par le client s'affichent tels quels.
   const lignes = [
     { libelle: "Salle", valeur: reservation.salle.nom },
-    { libelle: "Date", valeur: formatDate.format(reservation.debut) },
+    {
+      libelle: "Date",
+      valeur: formatDate.format(reservation.debut),
+      majuscule: true,
+    },
     {
       libelle: "Horaire",
       valeur: `de ${formatHeure.format(reservation.debut)} à ${formatHeure.format(reservation.fin)}`,
+      majuscule: true,
     },
     {
       libelle: "Montant",
@@ -92,10 +99,14 @@ async function Confirmation({ id }: { id: string }) {
       </p>
 
       <dl className="mt-8 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white px-6 shadow-sm">
-        {lignes.map(({ libelle, valeur }) => (
+        {lignes.map(({ libelle, valeur, majuscule }) => (
           <div key={libelle} className="flex justify-between gap-4 py-4">
             <dt className="text-slate-500">{libelle}</dt>
-            <dd className="text-right font-medium first-letter:uppercase">{valeur}</dd>
+            <dd
+              className={`text-right font-medium ${majuscule ? "first-letter:uppercase" : ""}`}
+            >
+              {valeur}
+            </dd>
           </div>
         ))}
       </dl>
