@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { MESSAGE_CRENEAU_PRIS } from "@/lib/chevauchement";
+import { messageCreneauPris } from "@/lib/chevauchement";
 import { trouverConflitConfirme } from "@/lib/conflit-confirme";
 import { calculerMontant } from "@/lib/montant";
 import { prisma } from "@/lib/prisma";
@@ -58,7 +58,7 @@ export async function reserver(
     fin: resultat.fin,
   });
   if (conflit) {
-    return { erreurs: { general: MESSAGE_CRENEAU_PRIS }, valeurs };
+    return { erreurs: { general: messageCreneauPris(conflit) }, valeurs };
   }
 
   const reservation = await prisma.reservation.create({

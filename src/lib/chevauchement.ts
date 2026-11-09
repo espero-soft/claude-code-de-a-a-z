@@ -2,7 +2,9 @@
 // se chevaucher sur la même salle. Seules les réservations CONFIRMEE bloquent
 // un créneau ; une réservation EN_ATTENTE ou ANNULEE ne compte pas.
 
-import type { StatutReservation } from "@/generated/prisma/enums";
+// Chemins relatifs : Vitest tourne sans configuration et ne connaît pas l'alias @/.
+import type { StatutReservation } from "../generated/prisma/enums";
+import { FUSEAU_CENTRE } from "./reservation";
 
 export type Creneau = { debut: Date; fin: Date };
 
@@ -12,8 +14,26 @@ export type ReservationExistante = Creneau & {
   statut: StatutReservation;
 };
 
-export const MESSAGE_CRENEAU_PRIS =
-  "Ce créneau est déjà réservé pour cette salle. Choisissez un autre horaire.";
+const formatHeureParis = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: FUSEAU_CENTRE,
+  hour: "numeric",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+// Heure du centre écrite « 10 h » ou « 10 h 30 ».
+function heureLisible(date: Date): string {
+  const parties = formatHeureParis.formatToParts(date);
+  const heure = Number(parties.find((p) => p.type === "hour")?.value);
+  const minute = parties.find((p) => p.type === "minute")?.value ?? "00";
+  return minute === "00" ? `${heure} h` : `${heure} h ${minute}`;
+}
+
+// Message affiché au client : il indique l'horaire déjà pris pour qu'il
+// sache quand la salle est libre.
+export function messageCreneauPris(reserve: Creneau): string {
+  return `Cette salle est déjà réservée de ${heureLisible(reserve.debut)} à ${heureLisible(reserve.fin)}. Choisissez un autre horaire.`;
+}
 
 // Créneaux semi-ouverts [debut, fin[ : deux créneaux qui se touchent
 // (l'un finit à 10 h, l'autre commence à 10 h) ne se chevauchent pas.

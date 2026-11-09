@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   chevauche,
   conflitConfirme,
+  messageCreneauPris,
   type ReservationExistante,
 } from "./chevauchement";
 
@@ -89,5 +90,26 @@ describe("conflitConfirme", () => {
       conflit,
     ];
     expect(conflitConfirme(demande, existantes)).toBe(conflit);
+  });
+});
+
+describe("messageCreneauPris", () => {
+  // Heures de Paris (UTC+1 en novembre), quel que soit le fuseau de la machine.
+  const paris = (heure: string) => new Date(`2026-11-10T${heure}:00+01:00`);
+
+  it("indique l'horaire déjà réservé, à l'heure de Paris", () => {
+    expect(
+      messageCreneauPris({ debut: paris("10:00"), fin: paris("12:00") }),
+    ).toBe(
+      "Cette salle est déjà réservée de 10 h à 12 h. Choisissez un autre horaire.",
+    );
+  });
+
+  it("affiche les demi-heures et les heures du matin sans zéro initial", () => {
+    expect(
+      messageCreneauPris({ debut: paris("08:30"), fin: paris("09:30") }),
+    ).toBe(
+      "Cette salle est déjà réservée de 8 h 30 à 9 h 30. Choisissez un autre horaire.",
+    );
   });
 });
