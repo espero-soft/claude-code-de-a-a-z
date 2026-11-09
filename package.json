@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset"
@@ -20,6 +21,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@tailwindcss/turbopack": "4.3.5",
     "@types/node": "20.19.43",
     "@types/react": "19.3.0",
