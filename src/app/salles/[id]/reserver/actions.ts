@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { MESSAGE_CRENEAU_PRIS } from "@/lib/chevauchement";
+import { trouverConflitConfirme } from "@/lib/conflit-confirme";
 import { calculerMontant } from "@/lib/montant";
 import { prisma } from "@/lib/prisma";
 import {
@@ -47,6 +49,16 @@ export async function reserver(
       erreurs: { general: "Cette salle n'est plus proposée à la location." },
       valeurs,
     };
+  }
+
+  // Règle R3 : seules les réservations confirmées bloquent le créneau.
+  const conflit = await trouverConflitConfirme(prisma, {
+    salleId: salle.id,
+    debut: resultat.debut,
+    fin: resultat.fin,
+  });
+  if (conflit) {
+    return { erreurs: { general: MESSAGE_CRENEAU_PRIS }, valeurs };
   }
 
   const reservation = await prisma.reservation.create({

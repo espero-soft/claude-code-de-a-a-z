@@ -37,7 +37,7 @@ Texte exact du cahier des charges ; le code y renvoie par leur numéro (« R1 »
 |---|---|---|
 | R1 | Une réservation dure au minimum 1 heure, par tranches de 30 minutes. | Oui : `validerReservation` (`src/lib/reservation.ts`) |
 | R2 | Le centre est ouvert du lundi au vendredi, de 8 h à 20 h. | Oui : `validerReservation` (`src/lib/reservation.ts`) |
-| R3 | Deux réservations confirmées ne peuvent pas se chevaucher sur la même salle. | **Non** (aucune vérification ; statut `CONFIRMEE` prévu dans le schéma) |
+| R3 | Deux réservations confirmées ne peuvent pas se chevaucher sur la même salle. | **En partie**, en attendant le paiement : `conflitConfirme` (`src/lib/chevauchement.ts`) et la requête partagée `trouverConflitConfirme` (`src/lib/conflit-confirme.ts`), appelée dans `reserver` (`actions.ts`) et dans la transaction de `confirmerReservation` (`src/lib/confirmation.ts`). Seules les `CONFIRMEE` bloquent un créneau, or rien n'appelle encore `confirmerReservation` (elle attend le paiement de R6) : aucune réservation ne devient `CONFIRMEE`, donc la vérification ne bloque rien dans l'application pour l'instant. |
 | R4 | On ne peut pas réserver dans le passé. | Oui : `validerReservation` (`src/lib/reservation.ts`) |
 | R5 | Le montant = prix par heure x durée. | Oui : `calculerMontant` (`src/lib/montant.ts`), appelé dans `reserver` (`actions.ts`) |
 | R6 | Une réservation en attente de paiement depuis plus de 15 minutes est annulée automatiquement. | **Non** (pas de paiement ni de tâche ; `createdAt` et `ANNULEE` existent dans le schéma) |
