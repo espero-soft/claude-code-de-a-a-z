@@ -60,6 +60,8 @@ export default function SallePage({ params }: PageProps<"/salles/[id]">) {
 
 async function FicheSalle({ id }: { id: string }) {
   const salle = await lireSalle(id);
+  // Le proxy a déjà répondu 404 pour une salle inconnue. Ce contrôle couvre
+  // le cas rare d'une salle désactivée entre le proxy et cette lecture.
   if (!salle) {
     notFound();
   }
