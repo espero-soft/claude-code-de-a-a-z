@@ -51,3 +51,13 @@ Texte exact du cahier des charges ; le code y renvoie par leur numéro (« R1 »
 - **Cache Components activé** (`cacheComponents: true` dans `next.config.ts`) : les pages dynamiques gardent une coquille statique et placent la lecture des données dans un composant enfant sous `<Suspense>`, qui commence par `await connection()`. `params` est une promesse, résolue via `params.then(...)` dans le Suspense ; typer avec `PageProps<"/route/[id]">`. `react.cache()` évite les doubles lectures entre `generateMetadata` et la page.
 - **404 des salles** : la fiche est envoyée en flux, donc son code HTTP ne peut plus changer après coup. `src/proxy.ts` (le « middleware » de Next 16) vérifie la salle avant le rendu sur `/salles/:id` et `/salles/:id/reserver`, et réécrit vers `/salles/introuvable`, page statique qui appelle `notFound()` et affiche `salles/not-found.tsx`. Ajouter toute nouvelle route sous `/salles/[id]` au `matcher` du proxy si elle doit répondre un vrai 404.
 - Une salle avec `active: false` est traitée comme inexistante (filtre `active: true` dans chaque requête).
+
+## Sécurité
+
+Permissions définies dans `.claude/settings.json` (partagé via git, donc valables pour tout le monde). Ordre d'évaluation : `deny` l'emporte sur `ask`, qui l'emporte sur `allow`.
+
+- **Autorisé sans confirmation** : `npm run lint`, `npm test`, `npx vitest` (avec ou sans arguments), `git status`, `git diff`, `git log` (lecture seule).
+- **Toujours refusé** : `git push --force` et `git push -f`, `rm -rf` et `rm -fr`, et la lecture de `.env` (secrets ; s'appuyer sur `.env.example`).
+- **Confirmation demandée** : tout autre `git push`, et `git reset --hard`.
+
+Ces règles portent sur des formes exactes de commande (préfixe) : une autre écriture (`git push origin main --force`, `rm -r -f`) n'est pas couverte par le refus. Ne pas chercher à les contourner ; demander à l'utilisateur.
