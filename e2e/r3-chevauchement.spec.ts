@@ -1,10 +1,11 @@
 // Règle R3 dans le navigateur : deux réservations confirmées ne peuvent pas se
 // chevaucher sur la même salle. S'appuie sur la réservation CONFIRMÉE du seed
-// (Horizon, mardi 17/11/2026 de 10 h à 12 h) : lancer `npm run db:seed` avant.
+// (Horizon, un mardi à venir, voir src/lib/date-demo.ts de 10 h à 12 h) : lancer `npm run db:seed` avant.
 import { execFileSync } from "node:child_process";
+import { dateDemo } from "../src/lib/date-demo";
 import { expect, test, type Page } from "@playwright/test";
 
-const DATE_DEMO = "2026-11-17";
+const DATE_DEMO = dateDemo();
 const EMAIL_TEST = "playwright@example.com"; // voir e2e/nettoyage.ts
 const MESSAGE_R3 =
   "Cette salle est déjà réservée de 10 h à 12 h. Choisissez un autre horaire.";

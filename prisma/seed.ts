@@ -4,6 +4,7 @@
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
 import { calculerMontant } from "../src/lib/montant";
+import { dateDemo } from "../src/lib/date-demo";
 import { heureDeParis } from "../src/lib/reservation";
 
 const salles = [
@@ -69,14 +70,14 @@ async function main() {
 }
 
 // Réservation CONFIRMÉE de démonstration, pour voir R3 dans le navigateur :
-// réserver Horizon le mardi 17/11/2026 entre 10 h et 12 h doit être refusé.
+// réserver Horizon un mardi à venir (dateDemo) entre 10 h et 12 h doit être refusé.
 // Identifiant fixe : relancer le seed la remet à jour au lieu de la dupliquer.
 async function insererReservationDemo() {
   const horizon = await prisma.salle.findUniqueOrThrow({
     where: { slug: "horizon" },
   });
-  const debut = heureDeParis("2026-11-17", "10:00");
-  const fin = heureDeParis("2026-11-17", "12:00");
+  const debut = heureDeParis(dateDemo(), "10:00");
+  const fin = heureDeParis(dateDemo(), "12:00");
   const reservation = {
     salleId: horizon.id,
     debut,
