@@ -104,10 +104,7 @@ async function ListeSalles() {
               </li>
             ))}
           </ul>
-          {/* relative z-10 : passe au-dessus du ::after du lien de la carte,
-              sinon le clic mènerait à la fiche. mt-auto aligne les boutons
-              en bas des cartes de hauteurs différentes. Le aria-label précise
-              la salle, sinon le lecteur d'écran lirait « Réserver » x4. */}
+          {/* relative z-10 : au-dessus du lien de la carte */}
           <div className="mt-auto pt-6">
             <Link
               href={`/salles/${salle.id}/reserver`}
