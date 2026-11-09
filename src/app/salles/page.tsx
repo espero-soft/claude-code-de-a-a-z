@@ -69,10 +69,19 @@ async function ListeSalles() {
       {salles.map((salle) => (
         <li
           key={salle.id}
-          className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-orange-300 hover:shadow-md"
         >
           <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-xl font-semibold">{salle.nom}</h2>
+            <h2 className="text-xl font-semibold">
+              {/* Le ::after du lien couvre toute la carte : un clic n'importe
+                  où mène à la fiche, et le lecteur d'écran n'annonce que le nom. */}
+              <Link
+                href={`/salles/${salle.id}`}
+                className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-orange-500"
+              >
+                {salle.nom}
+              </Link>
+            </h2>
             <p className="shrink-0 text-lg font-semibold text-orange-600">
               {formatPrix.format(salle.prixHeureCentimes / 100)}
               <span className="text-sm font-normal text-slate-500">
