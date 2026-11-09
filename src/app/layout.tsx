@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
+import { BarreNavigation, Navigation } from "./Navigation";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,7 +25,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* Avec Cache Components, usePathname suspend sur les routes à
+            paramètre inconnu au build (/salles/[id]) : la barre sans lien
+            actif sert de fallback pendant le prérendu. */}
+        <Suspense fallback={<BarreNavigation cheminActif={null} />}>
+          <Navigation />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }
