@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset"
@@ -29,7 +30,8 @@
     "prisma": "7.10.1",
     "tailwindcss": "4.3.5",
     "tsx": "4.23.15",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.1.12"
   },
   "engines": {
     "node": ">=20.9.0"
