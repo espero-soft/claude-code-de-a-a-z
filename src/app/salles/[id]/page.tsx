@@ -87,6 +87,13 @@ async function FicheSalle({ id }: { id: string }) {
         </div>
       </dl>
 
+      <Link
+        href={`/salles/${salle.id}/reserver`}
+        className="mt-8 inline-flex items-center rounded-full bg-orange-600 px-6 py-3 text-lg font-semibold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
+      >
+        Réserver
+      </Link>
+
       <section className="mt-10">
         <h2 className="text-xl font-semibold">Description</h2>
         <p className="mt-3 text-lg text-slate-700">{salle.description}</p>
