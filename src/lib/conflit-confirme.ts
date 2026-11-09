@@ -1,7 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import {
   conflitConfirme,
-  type Creneau,
+  type DemandeCreneau,
   type ReservationExistante,
 } from "@/lib/chevauchement";
 
@@ -12,10 +12,9 @@ type ClientReservations = Pick<Prisma.TransactionClient, "reservation">;
 // chevauche le créneau demandé. Seule requête de ce genre dans l'application,
 // utilisée à la réservation (`reserver`) et à la confirmation
 // (`confirmerReservation`) pour qu'elles appliquent toujours la même règle.
-// `demande.id` exclut la réservation elle-même lors de sa confirmation.
 export async function trouverConflitConfirme(
   client: ClientReservations,
-  demande: Creneau & { salleId: string; id?: string },
+  demande: DemandeCreneau,
 ): Promise<ReservationExistante | null> {
   const confirmees = await client.reservation.findMany({
     where: {

@@ -16,7 +16,7 @@ Versions figées dans `package.json` (Next 16, React 19, Prisma 7, Tailwind 4) p
 npm run dev                  # serveur de développement (http://localhost:3000)
 npm run build                # build de production
 npm run lint                 # ESLint
-npm test                     # Vitest, une passe (pas de fichier de config, valeurs par défaut)
+npm test                     # Vitest, une passe (vitest.config.mts : alias @ vers ./src)
 npx vitest run src/lib/reservation.test.ts       # un seul fichier
 npx vitest run -t "refuse le samedi"             # un seul test, par son nom
 

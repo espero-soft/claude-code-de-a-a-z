@@ -2,8 +2,7 @@
 // plus de 15 minutes est expirée. « Plus de » au sens strict : à exactement
 // 15 minutes, la réservation n'est pas encore expirée.
 
-// Chemins relatifs : Vitest tourne sans configuration et ne connaît pas l'alias @/.
-import type { StatutReservation } from "../generated/prisma/enums";
+import type { StatutReservation } from "@/generated/prisma/enums";
 
 export const DELAI_PAIEMENT_MS = 15 * 60 * 1000;
 

@@ -18,7 +18,7 @@ export async function confirmerReservation(
   return prisma.$transaction(async (tx) => {
     const reservation = await tx.reservation.findUnique({
       where: { id },
-      select: { id: true, salleId: true, statut: true, debut: true, fin: true },
+      select: { salleId: true, statut: true, debut: true, fin: true },
     });
     if (!reservation) return { ok: false, raison: "introuvable" };
     if (reservation.statut !== "EN_ATTENTE") {

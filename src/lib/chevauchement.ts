@@ -2,11 +2,13 @@
 // se chevaucher sur la même salle. Seules les réservations CONFIRMEE bloquent
 // un créneau ; une réservation EN_ATTENTE ou ANNULEE ne compte pas.
 
-// Chemins relatifs : Vitest tourne sans configuration et ne connaît pas l'alias @/.
-import type { StatutReservation } from "../generated/prisma/enums";
-import { FUSEAU_CENTRE } from "./reservation";
+import type { StatutReservation } from "@/generated/prisma/enums";
+import { FUSEAU_CENTRE } from "@/lib/reservation";
 
 export type Creneau = { debut: Date; fin: Date };
+
+// Créneau demandé sur une salle, à la réservation comme à la confirmation.
+export type DemandeCreneau = Creneau & { salleId: string };
 
 export type ReservationExistante = Creneau & {
   id: string;
@@ -44,10 +46,10 @@ export function chevauche(a: Creneau, b: Creneau): boolean {
 }
 
 // Première réservation confirmée de la même salle qui chevauche la demande,
-// ou null si le créneau est libre. `demande.id` permet d'ignorer la
-// réservation elle-même quand on vérifie au moment de la confirmer.
+// ou null si le créneau est libre. À la confirmation, la réservation
+// elle-même est EN_ATTENTE : le filtre sur le statut l'écarte déjà.
 export function conflitConfirme(
-  demande: Creneau & { salleId: string; id?: string },
+  demande: DemandeCreneau,
   existantes: readonly ReservationExistante[],
 ): ReservationExistante | null {
   return (
@@ -55,7 +57,6 @@ export function conflitConfirme(
       (r) =>
         r.statut === "CONFIRMEE" &&
         r.salleId === demande.salleId &&
-        r.id !== demande.id &&
         chevauche(r, demande),
     ) ?? null
   );

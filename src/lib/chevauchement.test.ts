@@ -77,11 +77,6 @@ describe("conflitConfirme", () => {
     expect(conflitConfirme(contigue, [reservation()])).toBeNull();
   });
 
-  it("ignore la réservation elle-même au moment de la confirmer", () => {
-    const elleMeme = reservation({ id: "r2", ...creneau("10:00", "12:00") });
-    expect(conflitConfirme({ ...demande, id: "r2" }, [elleMeme])).toBeNull();
-  });
-
   it("trouve le conflit parmi plusieurs réservations", () => {
     const conflit = reservation({ id: "r3", ...creneau("11:30", "13:00") });
     const existantes = [
