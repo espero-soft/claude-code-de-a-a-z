@@ -1,0 +1,31 @@
+{
+  "description": "Protège les migrations Prisma existantes et lance ESLint sur chaque fichier .ts/.tsx modifié.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/proteger-migrations.sh",
+            "timeout": 10,
+            "statusMessage": "Vérification : pas de modification des migrations..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/lint-fichier.sh",
+            "timeout": 60,
+            "statusMessage": "ESLint sur le fichier modifié..."
+          }
+        ]
+      }
+    ]
+  }
+}

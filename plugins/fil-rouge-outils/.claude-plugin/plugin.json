@@ -1,0 +1,9 @@
+{
+  "name": "fil-rouge-outils",
+  "version": "1.0.0",
+  "description": "Outils du projet fil rouge : commandes /verifier et /regle, skill tests-regle-metier, sous-agent relecteur-regles, hooks ESLint et protection des migrations Prisma.",
+  "author": {
+    "name": "Formation Claude Code de A à Z"
+  },
+  "keywords": ["nextjs", "prisma", "vitest", "regles-metier"]
+}
