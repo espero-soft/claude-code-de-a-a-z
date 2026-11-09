@@ -8,7 +8,8 @@ import { prisma } from "@/lib/prisma";
 const formatPrix = new Intl.NumberFormat("fr-FR", {
   style: "currency",
   currency: "EUR",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 // cache() évite de lire deux fois la même salle : generateMetadata et la
@@ -76,9 +77,9 @@ async function FicheSalle({ id }: { id: string }) {
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <dt className="text-sm text-slate-500">Prix</dt>
-          <dd className="mt-1 text-2xl font-semibold text-orange-600">
+          <dd className="mt-1 text-4xl font-bold tracking-tight text-orange-600">
             {formatPrix.format(salle.prixHeureCentimes / 100)}
-            <span className="text-base font-normal text-slate-500">
+            <span className="text-base font-normal tracking-normal text-slate-500">
               {" "}
               / heure
             </span>
@@ -102,7 +103,7 @@ async function FicheSalle({ id }: { id: string }) {
             {salle.equipements.map((equipement) => (
               <li
                 key={equipement.id}
-                className="rounded-full bg-white px-4 py-2 text-slate-700 ring-1 ring-slate-200"
+                className="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-sm font-medium text-orange-700 ring-1 ring-inset ring-orange-200"
               >
                 {equipement.nom}
               </li>
