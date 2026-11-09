@@ -20,8 +20,8 @@ export async function trouverConflitConfirme(
     where: {
       salleId: demande.salleId,
       statut: "CONFIRMEE",
-      debut: { lt: demande.fin },
-      fin: { gt: demande.debut },
+      debut: { lte: demande.fin },
+      fin: { gte: demande.debut },
     },
     select: { id: true, salleId: true, statut: true, debut: true, fin: true },
   });
