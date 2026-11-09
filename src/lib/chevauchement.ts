@@ -41,7 +41,7 @@ export function messageCreneauPris(reserve: Creneau): string {
 // (l'un finit à 10 h, l'autre commence à 10 h) ne se chevauchent pas.
 export function chevauche(a: Creneau, b: Creneau): boolean {
   return (
-    a.debut.getTime() <= b.fin.getTime() && b.debut.getTime() <= a.fin.getTime()
+    a.debut.getTime() < b.fin.getTime() && b.debut.getTime() < a.fin.getTime()
   );
 }
 

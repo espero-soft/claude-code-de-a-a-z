@@ -81,7 +81,7 @@ async function Confirmation({ id }: { id: string }) {
     },
     {
       libelle: "Montant",
-      valeur: formatPrix.format(reservation.montantTotalCentimes),
+      valeur: formatPrix.format(reservation.montantTotalCentimes / 100),
     },
     { libelle: "Statut", valeur: libelleStatut[reservation.statut] },
     { libelle: "Nom", valeur: reservation.nomClient },

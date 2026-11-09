@@ -7,7 +7,7 @@ export const FUSEAU_CENTRE = "Europe/Paris";
 
 const OUVERTURE_MIN = 8 * 60;
 const FERMETURE_MIN = 20 * 60;
-const DUREE_MIN_MIN = 30;
+const DUREE_MIN_MIN = 60;
 
 export type SaisieReservation = {
   date: string;
