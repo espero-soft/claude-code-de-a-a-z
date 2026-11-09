@@ -1,7 +1,10 @@
-// Insère les 4 salles du centre d'affaires. Relançable sans créer de doublon :
-// chaque salle est retrouvée par son slug puis mise à jour.
+// Insère les 4 salles du centre d'affaires et une réservation confirmée de
+// démonstration. Relançable sans créer de doublon : chaque salle est retrouvée
+// par son slug, la réservation par son identifiant fixe, puis mise à jour.
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
+import { calculerMontant } from "../src/lib/montant";
+import { heureDeParis } from "../src/lib/reservation";
 
 const salles = [
   {
@@ -60,7 +63,35 @@ async function main() {
     });
   }
 
+  await insererReservationDemo();
+
   console.log(`Seed terminé : ${await prisma.salle.count()} salles en base.`);
+}
+
+// Réservation CONFIRMÉE de démonstration, pour voir R3 dans le navigateur :
+// réserver Horizon le mardi 17/11/2026 entre 10 h et 12 h doit être refusé.
+// Identifiant fixe : relancer le seed la remet à jour au lieu de la dupliquer.
+async function insererReservationDemo() {
+  const horizon = await prisma.salle.findUniqueOrThrow({
+    where: { slug: "horizon" },
+  });
+  const debut = heureDeParis("2026-11-17", "10:00");
+  const fin = heureDeParis("2026-11-17", "12:00");
+  const reservation = {
+    salleId: horizon.id,
+    debut,
+    fin,
+    nomClient: "Client de démonstration",
+    emailClient: "demo@example.com",
+    statut: "CONFIRMEE" as const,
+    montantTotalCentimes: calculerMontant(horizon.prixHeureCentimes, debut, fin),
+  };
+
+  await prisma.reservation.upsert({
+    where: { id: "demo-r3-horizon" },
+    create: { id: "demo-r3-horizon", ...reservation },
+    update: reservation,
+  });
 }
 
 main()
