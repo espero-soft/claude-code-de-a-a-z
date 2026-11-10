@@ -1,6 +1,9 @@
 # Claude traite une pull request quand on lui pose l'étiquette « claude » :
 # il lit la description de la PR, fait ce qui y est demandé sur la branche
-# de la PR, lance npm test, pousse un commit et commente la PR.
+# de la PR, lance npm test, commite et commente la PR. Claude ne pousse pas :
+# .claude/settings.json demande une confirmation pour « git push », que personne
+# ne peut donner ici. C'est l'étape suivante du workflow qui relance les tests
+# et pousse (sans --force), avec le jeton éphémère du job.
 name: Claude sur PR étiquetée
 
 on:
@@ -50,6 +53,7 @@ jobs:
         run: npm ci
 
       - name: Lancer Claude
+        id: claude
         uses: anthropics/claude-code-action@3b7e1a45ca6f231c62605aabcf79e6a41b08c7da # v1.0.263
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -66,10 +70,57 @@ jobs:
                (code et textes en français, règles métier R1 à R6, montants en centimes).
             3. Lance `npm test`. Si des tests échouent, corrige-les ; s'ils échouent encore,
                ne pousse rien.
-            4. Si les tests passent : `git add` des fichiers modifiés, un commit au message
-               en français, puis `git push origin HEAD:${{ github.event.pull_request.head.ref }}`.
+            4. Si les tests passent : `git add` des fichiers modifiés et un commit au message
+               en français, sur la branche actuelle. Ne pousse pas et ne change pas de branche :
+               une étape suivante du workflow relance les tests et pousse tes commits.
             5. Termine toujours par un commentaire sur la PR (`gh pr comment`) qui résume
-               les changements, le résultat de `npm test` et, le cas échéant, ce qui bloque.
+               les changements et le résultat de `npm test`. N'y signale pas l'absence de push
+               comme un blocage : le workflow publie ensuite son propre commentaire sur le push.
           claude_args: |
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm test),Bash(npx vitest:*),Bash(git status),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin HEAD:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm test),Bash(npx vitest:*),Bash(git status),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
+            --disallowedTools "Bash(git push:*)"
             --max-turns 40
+
+      # Le push est fait ici, par le workflow, et non par Claude : la règle « ask »
+      # du projet sur git push reste intacte. On ne croit pas Claude sur parole :
+      # on vérifie la branche, on relance les tests, puis on pousse sans --force
+      # (un push refusé parce que la branche a avancé entre-temps fait échouer le job).
+      - name: Pousser les commits de Claude
+        id: push
+        env:
+          # Passés par l'environnement, jamais interpolés dans le script (injection).
+          BRANCHE: ${{ github.event.pull_request.head.ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$(git rev-parse --abbrev-ref HEAD)" != "$BRANCHE" ]; then
+            echo "::error::HEAD n'est plus sur la branche $BRANCHE ; rien n'est poussé."
+            exit 1
+          fi
+          git fetch --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${BRANCHE}"
+          NOUVEAUX=$(git rev-list --count FETCH_HEAD..HEAD)
+          echo "nouveaux=$NOUVEAUX" >> "$GITHUB_OUTPUT"
+          if [ "$NOUVEAUX" -eq 0 ]; then
+            echo "Aucun commit de Claude à pousser."
+            exit 0
+          fi
+          git log --oneline FETCH_HEAD..HEAD
+          npm test
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCHE}"
+
+      - name: Commenter le résultat du push
+        if: always() && steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          BRANCHE: ${{ github.event.pull_request.head.ref }}
+          RESULTAT: ${{ steps.push.outcome }}
+          NOUVEAUX: ${{ steps.push.outputs.nouveaux }}
+        run: |
+          if [ "$RESULTAT" != "success" ]; then
+            MESSAGE="Push par le workflow : **échec** (voir le journal de l'exécution). Rien n'a été poussé sur \`$BRANCHE\`."
+          elif [ "${NOUVEAUX:-0}" -eq 0 ]; then
+            MESSAGE="Push par le workflow : aucun nouveau commit à pousser."
+          else
+            MESSAGE="Push par le workflow : $NOUVEAUX commit(s) poussé(s) sur \`$BRANCHE\` après une nouvelle passe de \`npm test\`."
+          fi
+          gh pr comment "$PR" --body "$MESSAGE"
