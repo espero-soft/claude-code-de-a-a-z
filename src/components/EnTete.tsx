@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { IconeFermer, IconeMenu } from "./icones";
 import { estActif, LIENS } from "./liens-navigation";
 import { Logo } from "./Logo";
@@ -11,7 +11,20 @@ import { Logo } from "./Logo";
 // cuivre. Sur mobile, un bouton « Menu » déplie les liens sous la barre.
 // Sans état de chemin : sert aussi de fallback du <Suspense> dans le layout,
 // tant que le chemin courant n'est pas connu (cheminActif = null).
-export function BarreEnTete({ cheminActif }: { cheminActif: string | null }) {
+// Les emplacements `compte*` reçoivent la zone du compte (ZoneCompte, lue
+// côté serveur) : absents du fallback, ils arrivent en flux.
+type EmplacementsCompte = {
+  compteOrdinateur?: ReactNode;
+  compteMobile?: ReactNode;
+  compteMenu?: ReactNode;
+};
+
+export function BarreEnTete({
+  cheminActif,
+  compteOrdinateur,
+  compteMobile,
+  compteMenu,
+}: { cheminActif: string | null } & EmplacementsCompte) {
   const [menuOuvert, setMenuOuvert] = useState(false);
   const idMenu = useId();
   const boutonMenu = useRef<HTMLButtonElement>(null);
@@ -25,8 +38,12 @@ export function BarreEnTete({ cheminActif }: { cheminActif: string | null }) {
           <Logo variante="clair" className="h-11 w-auto" />
         </Link>
 
+        {/* Mobile : « Se connecter » ou l'initiale, à gauche du bouton Menu. */}
+        <div className="ml-auto flex items-center md:hidden">{compteMobile}</div>
+
         <nav
           aria-label="Navigation principale"
+          className="md:flex md:items-center md:gap-4"
           onKeyDown={(evenement) => {
             if (evenement.key !== "Escape" || !menuOuvert) return;
             setMenuOuvert(false);
@@ -72,13 +89,15 @@ export function BarreEnTete({ cheminActif }: { cheminActif: string | null }) {
                 </li>
               );
             })}
+            {compteMenu}
           </ul>
+          {compteOrdinateur}
         </nav>
       </div>
     </header>
   );
 }
 
-export function EnTete() {
-  return <BarreEnTete cheminActif={usePathname()} />;
+export function EnTete(emplacements: EmplacementsCompte) {
+  return <BarreEnTete cheminActif={usePathname()} {...emplacements} />;
 }

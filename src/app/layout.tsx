@@ -3,6 +3,7 @@ import { Manrope, Playfair_Display } from "next/font/google";
 import { Suspense } from "react";
 import { BarreEnTete, EnTete } from "@/components/EnTete";
 import { PiedDePage } from "@/components/PiedDePage";
+import { ZoneCompte } from "@/components/ZoneCompte";
 import "./globals.css";
 
 // Polices de la charte, auto-hébergées par next/font (aucune requête vers
@@ -48,7 +49,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             paramètre inconnu au build (/salles/[id]) : la barre sans lien
             actif sert de fallback pendant le prérendu. */}
         <Suspense fallback={<BarreEnTete cheminActif={null} />}>
-          <EnTete />
+          <EnTete
+            compteOrdinateur={<ZoneCompte disposition="ordinateur" />}
+            compteMobile={<ZoneCompte disposition="mobile" />}
+            compteMenu={<ZoneCompte disposition="menu" />}
+          />
         </Suspense>
         {children}
         <PiedDePage />

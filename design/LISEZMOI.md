@@ -10,6 +10,7 @@ Ressources de la formation « Claude Code de A à Z » pour redessiner l'applica
 | `logo/` | Logo horizontal, monogramme R, planche de marque (images générées) |
 | `maquettes/` | Maquettes des écrans, ordinateur et mobile (images générées) |
 | `photos/` | Une photo par salle, 1920 × 1080 (images générées) |
+| `maquettes-12/` | Module 12 : connexion et espace client, ordinateur et mobile (images générées) |
 
 ## Attention : maquettes d'exercice
 
