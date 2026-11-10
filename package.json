@@ -12,9 +12,11 @@
     "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
-    "revue": "node scripts/revue.mjs"
+    "revue": "node scripts/revue.mjs",
+    "premier-appel": "tsx scripts/premier-appel.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.7.0",
     "@prisma/adapter-better-sqlite3": "7.10.1",
     "@prisma/client": "7.10.1",
     "next": "16.4.5",
