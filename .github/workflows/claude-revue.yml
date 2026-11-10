@@ -1,0 +1,89 @@
+# Revue automatique : à chaque pull request ouverte ou mise à jour, Claude relit
+# le diff, vérifie les règles métier R1 à R6 de CLAUDE.md et poste UN seul
+# commentaire de revue en français (tableau R1 à R6 + problèmes avec fichier et ligne).
+# Lecture seule : aucun outil d'écriture (Edit, Write...), aucun commit, aucun push.
+# Le seul droit d'écriture du job est de commenter la PR.
+name: Revue Claude des règles R1 à R6
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Aucun droit par défaut ; le job ne reçoit que ce dont il a besoin.
+permissions: {}
+
+# Une seule revue à la fois par PR : un nouveau push annule la revue en cours,
+# devenue obsolète.
+concurrency:
+  group: claude-revue-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  revue:
+    # Pas de fork : les secrets n'y sont pas transmis. Pas de brouillon non plus.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read         # lire le code, rien de plus
+      pull-requests: write   # lire la PR et poster le commentaire de revue
+    steps:
+      - name: Récupérer le code de la PR
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # Historique complet pour comparer avec la branche de base.
+          fetch-depth: 0
+          # Aucun identifiant git laissé sur le disque : rien ne peut être poussé.
+          persist-credentials: false
+
+      - name: Lancer la revue Claude
+        uses: anthropics/claude-code-action@3b7e1a45ca6f231c62605aabcf79e6a41b08c7da # v1.0.263
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Jeton éphémère du workflow, limité aux permissions du job ci-dessus.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Dépôt : ${{ github.repository }}
+            Pull request : #${{ github.event.pull_request.number }}
+
+            Tu es relecteur, en LECTURE SEULE : ne modifie aucun fichier, ne commite rien,
+            ne pousse rien.
+
+            1. Lis CLAUDE.md : la table « Règles métier » (R1 à R6) et les conventions
+               (français, montants en centimes, fuseau Europe/Paris, prix lu en base,
+               salles inactives filtrées).
+            2. Lis le diff avec `gh pr diff ${{ github.event.pull_request.number }}`
+               et la description avec `gh pr view ${{ github.event.pull_request.number }}`.
+               Ouvre les fichiers concernés (Read, Grep, Glob) pour le contexte, et les tests
+               `*.test.ts` associés aux règles touchées.
+            3. Pour chaque règle R1 à R6, détermine un statut :
+               « ✅ Respectée », « ❌ Enfreinte », « ⚠️ À vérifier » ou « Non concernée »
+               (le diff ne touche pas cette règle). « Non concernée » s'écrit en toutes
+               lettres, sans symbole ni tiret devant.
+            4. Poste exactement UN commentaire, une seule fois, avec
+               `gh pr comment ${{ github.event.pull_request.number }} --body "..."`.
+               Pas d'autre commentaire, pas de commentaire en ligne, pas de modification
+               d'un commentaire existant. Format, en français :
+
+               ## Revue Claude : règles R1 à R6
+
+               | Règle | Statut | Commentaire |
+               |---|---|---|
+               | R1 | ... | ... |
+               (une ligne par règle, de R1 à R6)
+
+               ### Problèmes
+               - `chemin/du/fichier.ts:42` : description du problème et correction proposée.
+               (ou « Aucun problème relevé. »)
+
+               Ne cite que des problèmes réels, appuyés sur le diff, avec le fichier et le
+               numéro de ligne dans la version de la PR. Sois concis.
+               N'utilise aucun tiret cadratin (—) ni demi-cadratin (–) dans le commentaire :
+               ni dans le tableau, ni dans le texte. Utilise à la place deux-points,
+               virgules ou parenthèses.
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(gh pr comment:*)"
+            --disallowedTools "Edit,Write,NotebookEdit,Bash(git commit:*),Bash(git push:*),Bash(gh pr comment --edit-last:*),Bash(gh pr review:*),Bash(gh pr merge:*)"
+            --max-turns 25
