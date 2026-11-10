@@ -118,4 +118,11 @@ async function main() {
   }
 }
 
-main().finally(() => prisma.$disconnect());
+// Une erreur hors des tickets (clé absente à la création du client...) passe
+// aussi par afficherErreur, au lieu d'un rejet non géré.
+main()
+  .catch((erreur) => {
+    afficherErreur(erreur);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
