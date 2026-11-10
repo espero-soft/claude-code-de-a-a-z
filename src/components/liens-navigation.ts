@@ -14,6 +14,8 @@ export const LIEN_ESPACE_CLIENT = { href: "/compte", libelle: "Mes réservations
 export const LIEN_PROFIL = { href: "/profil", libelle: "Mon profil" };
 // Employé et administrateur seulement.
 export const LIEN_ADMINISTRATION = { href: "/admin/tickets", libelle: "Tickets" };
+// Administrateur seulement (capacité « journal »).
+export const LIEN_JOURNAL = { href: "/admin/journal", libelle: "Journal" };
 
 // Actif sur la page elle-même, et sur ses sous-routes (sauf l'accueil) :
 // « Nos salles » reste actif sur /salles/[id] et /salles/[id]/reserver.

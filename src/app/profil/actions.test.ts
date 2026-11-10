@@ -5,8 +5,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { empreinteCodeSuppression } from "@/lib/suppression-compte";
 
-const { getSession, prismaSimule, courriel, effacerCompte, fermerPaiementsEnCours, cookiesSupprimes } =
-  vi.hoisted(() => ({
+const {
+  getSession,
+  prismaSimule,
+  courriel,
+  effacerCompte,
+  fermerPaiementsEnCours,
+  cookiesSupprimes,
+  noterEvenement,
+} = vi.hoisted(() => ({
+    noterEvenement: vi.fn(async () => true),
     getSession: vi.fn(),
     prismaSimule: {
       user: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn() },
@@ -47,6 +55,8 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: prismaSimule }));
+// Journal des connexions (SECURITE.md, section 15) : on vérifie ce qui y part.
+vi.mock("@/lib/garde-journal", () => ({ noterEvenement }));
 vi.mock("@/lib/courriel", () => ({ envoyerCourriel: courriel }));
 vi.mock("@/lib/garde-connexion", () => ({
   consommerLimite: vi.fn(async () => ({ autorise: true })),
@@ -142,6 +152,11 @@ describe("deconnecterAppareil", () => {
     expect(prismaSimule.session.deleteMany).toHaveBeenCalledExactlyOnceWith({
       where: { id: "session-telephone", userId: "claire" },
     });
+    // Journalisé, sans l'identifiant de la session déconnectée.
+    expect(noterEvenement).toHaveBeenCalledExactlyOnceWith(
+      { type: "APPAREIL_DECONNECTE", email: "claire@exemple.fr", utilisateurId: "claire", motif: "un-appareil" },
+      expect.any(Headers),
+    );
   });
 
   it("répond pour la session d'un autre compte comme pour une session inexistante", async () => {
@@ -152,6 +167,8 @@ describe("deconnecterAppareil", () => {
     const inexistante = await deconnecterAppareil("session-inconnue");
     expect(autreCompte).toEqual({ erreur: "Cet appareil n'est plus connecté." });
     expect(autreCompte).toEqual(inexistante);
+    // Rien n'a été déconnecté : rien au journal.
+    expect(noterEvenement).not.toHaveBeenCalled();
   });
 
   it("ne déconnecte pas l'appareil de la requête par ce bouton", async () => {
@@ -175,6 +192,17 @@ describe("deconnecterAutresAppareils", () => {
     expect(prismaSimule.session.deleteMany).toHaveBeenCalledExactlyOnceWith({
       where: { userId: "claire", id: { not: "session-claire" } },
     });
+    expect(noterEvenement).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "APPAREIL_DECONNECTE", motif: "autres-appareils" }),
+      expect.any(Headers),
+    );
+  });
+
+  it("ne journalise rien quand aucun autre appareil n'était connecté", async () => {
+    connecter("claire");
+    prismaSimule.session.deleteMany.mockResolvedValue({ count: 0 });
+    await deconnecterAutresAppareils();
+    expect(noterEvenement).not.toHaveBeenCalled();
   });
 });
 
@@ -229,6 +257,12 @@ describe("confirmerSuppression", () => {
       "redirection:/compte-supprime",
     );
     expect(effacerCompte).toHaveBeenCalledWith(expect.anything(), "claire");
+    // Journalisé, sans le code de confirmation.
+    expect(noterEvenement).toHaveBeenCalledExactlyOnceWith(
+      { type: "COMPTE_SUPPRIME", email: "x", utilisateurId: "claire" },
+      expect.any(Headers),
+    );
+    expect(JSON.stringify(noterEvenement.mock.calls)).not.toContain("123456");
     // Code à usage unique.
     expect(prismaSimule.codeSuppressionCompte.delete).toHaveBeenCalled();
     expect(cookiesSupprimes).toContain("better-auth.session_token");
@@ -244,6 +278,7 @@ describe("confirmerSuppression", () => {
       data: { essais: { increment: 1 } },
     });
     expect(effacerCompte).not.toHaveBeenCalled();
+    expect(noterEvenement).not.toHaveBeenCalled();
   });
 
   it("ne croit pas le bon code si l'essai n'a pas pu être compté (essais simultanés)", async () => {
@@ -300,6 +335,7 @@ describe("confirmerSuppression", () => {
       /dernier administrateur/,
     );
     expect(cookiesSupprimes).toEqual([]);
+    expect(noterEvenement).not.toHaveBeenCalled();
   });
 
   it("refuse un visiteur sans rien lire", async () => {

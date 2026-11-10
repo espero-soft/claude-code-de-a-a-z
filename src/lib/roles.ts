@@ -14,15 +14,17 @@ export const ROLE_PAR_DEFAUT: Role = "CLIENT";
 // - reservations : consulter les réservations de tous les clients ;
 // - tickets : lire et valider les tickets du support ;
 // - chiffres : chiffre d'affaires, taux de remplissage (à venir) ;
-// - comptes : gérer les comptes et leurs rôles (à venir).
-export type Capacite = "reserver" | "reservations" | "tickets" | "chiffres" | "comptes";
+// - comptes : gérer les comptes et leurs rôles (à venir) ;
+// - journal : lire le journal des connexions (/admin/journal), qui montre
+//   les adresses IP et les échecs de tous les comptes, personnel compris.
+export type Capacite = "reserver" | "reservations" | "tickets" | "chiffres" | "comptes" | "journal";
 
 const CAPACITES: Record<Role, readonly Capacite[]> = {
   CLIENT: ["reserver"],
   // L'employé traite le support : réservations et tickets, mais ni les
   // chiffres ni les comptes.
   EMPLOYE: ["reserver", "reservations", "tickets"],
-  ADMIN: ["reserver", "reservations", "tickets", "chiffres", "comptes"],
+  ADMIN: ["reserver", "reservations", "tickets", "chiffres", "comptes", "journal"],
 };
 
 // Rôle lu en base : toute valeur inattendue (vide, minuscules, rôle inventé)
@@ -38,6 +40,15 @@ export function peut(role: Role, capacite: Capacite): boolean {
 // Le personnel du centre : il entre dans /admin.
 export function estPersonnel(role: Role): boolean {
   return peut(role, "tickets") || peut(role, "comptes");
+}
+
+// Capacité exigée par une page de /admin (utilisée par le proxy, doublée
+// dans chaque page). Une page inconnue exige la plus forte : refus par défaut.
+export function capacitePageAdmin(chemin: string): Capacite {
+  if (chemin === "/admin/tickets" || chemin.startsWith("/admin/tickets/")) return "tickets";
+  if (chemin === "/admin") return "tickets";
+  if (chemin === "/admin/journal" || chemin.startsWith("/admin/journal/")) return "journal";
+  return "comptes";
 }
 
 // --- Second facteur (TOTP) du personnel ---

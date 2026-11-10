@@ -39,6 +39,17 @@ async function main() {
   await prisma.user.deleteMany({ where: { email: { endsWith: DOMAINE_ROLES } } });
   await prisma.verification.deleteMany({ where: { identifier: { endsWith: DOMAINE_ROLES } } });
 
+  // Journal des connexions : traces laissées par les comptes de test.
+  await prisma.evenementConnexion.deleteMany({
+    where: {
+      OR: [
+        { email: EMAIL_TEST },
+        { email: { endsWith: DOMAINE_ROLES } },
+        { email: { endsWith: DOMAINE_ATTAQUES } },
+      ],
+    },
+  });
+
   await prisma.ticket.deleteMany({ where: { email: EMAIL_TEST } });
   await prisma.reservation.deleteMany({ where: { emailClient: EMAIL_TEST } });
   // Compte créé par e2e/connexion.spec.ts, ses sessions et ses codes en cours.

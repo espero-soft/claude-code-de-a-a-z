@@ -1,13 +1,14 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { lireUtilisateur } from "@/lib/acces";
 import { auth } from "@/lib/auth";
 import { dureeEnMinutes, erreurCode, normaliserCode } from "@/lib/connexion";
 import { envoyerCourriel } from "@/lib/courriel";
 import { consommerLimite } from "@/lib/garde-connexion";
+import { noterEvenement } from "@/lib/garde-journal";
 import { cleLimite, LIMITE_ENVOIS } from "@/lib/limite-connexion";
 import { prisma } from "@/lib/prisma";
 import { validerNom } from "@/lib/profil";
@@ -69,6 +70,10 @@ export async function deconnecterAppareil(sessionId: string): Promise<EtatAppare
     where: { id: sessionId, userId: utilisateur.id },
   });
   if (count === 0) return { erreur: "Cet appareil n'est plus connecté." };
+  await noterEvenement(
+    { type: "APPAREIL_DECONNECTE", email: utilisateur.email, utilisateurId: utilisateur.id, motif: "un-appareil" },
+    await headers(),
+  );
   refresh();
   return { succes: "L'appareil est déconnecté." };
 }
@@ -80,6 +85,17 @@ export async function deconnecterAutresAppareils(): Promise<EtatAppareils> {
   const { count } = await prisma.session.deleteMany({
     where: { userId: utilisateur.id, id: { not: utilisateur.sessionId } },
   });
+  if (count > 0) {
+    await noterEvenement(
+      {
+        type: "APPAREIL_DECONNECTE",
+        email: utilisateur.email,
+        utilisateurId: utilisateur.id,
+        motif: "autres-appareils",
+      },
+      await headers(),
+    );
+  }
   refresh();
   return {
     succes:
@@ -211,6 +227,12 @@ export async function confirmerSuppression(
       erreur: resultat.raison === "dernier-admin" ? MESSAGES_REFUS["dernier-admin"] : NON_CONNECTE,
     };
   }
+
+  // Trace gardée 90 jours, comme les autres (SECURITE.md, section 15).
+  await noterEvenement(
+    { type: "COMPTE_SUPPRIME", email: resultat.email, utilisateurId: utilisateur.id },
+    await headers(),
+  );
 
   // La session n'existe plus en base ; on retire aussi les cookies.
   const { authCookies } = await auth.$context;

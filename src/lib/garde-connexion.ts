@@ -7,8 +7,9 @@ import {
   LIMITE_ESSAIS,
   type DecisionLimite,
   type RegleLimite,
-  type TypeLimite,
 } from "@/lib/limite-connexion";
+import { entetesDe, noterEvenement } from "@/lib/garde-journal";
+import type { Motif } from "@/lib/journal";
 import { prisma } from "@/lib/prisma";
 
 // Garde de la connexion par code (SECURITE.md, section 10), branchée sur
@@ -70,11 +71,30 @@ export async function consommerLimite(
   return { autorise: false, reessayerDansSecondes: 1 };
 }
 
-async function exigerLimite(type: TypeLimite, email: unknown, regle: RegleLimite, code: string) {
+type Contexte = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
+
+const MOTIF_BLOCAGE: Record<"envoi" | "essai", Motif> = {
+  envoi: "trop-de-codes-demandes",
+  essai: "trop-d-essais-de-code",
+};
+
+async function exigerLimite(
+  contexte: Contexte,
+  type: "envoi" | "essai",
+  regle: RegleLimite,
+  code: string,
+) {
+  const email: unknown = contexte.body?.email;
   // Sans adresse valable, la route refusera la requête d'elle-même.
   if (typeof email !== "string") return;
   const decision = await consommerLimite(cleLimite(type, email), regle);
   if (decision.autorise) return;
+  // Refus levé ici, avant la route : les crochets « after » du journal ne
+  // passeront pas, on journalise donc le blocage nous-mêmes.
+  await noterEvenement(
+    { type: "COMPTE_BLOQUE", email, motif: MOTIF_BLOCAGE[type] },
+    entetesDe(contexte),
+  );
   throw new APIError(
     "TOO_MANY_REQUESTS",
     {
@@ -100,14 +120,14 @@ export function gardeConnexion() {
                 message: "Invalid OTP type",
               });
             }
-            await exigerLimite("envoi", contexte.body.email, LIMITE_ENVOIS, CODE_TROP_D_ENVOIS);
+            await exigerLimite(contexte, "envoi", LIMITE_ENVOIS, CODE_TROP_D_ENVOIS);
           }),
         },
         {
           // Compté avant la vérification : un essai, bon ou faux, compte.
           matcher: (contexte) => contexte.path === ROUTE_CONNEXION,
           handler: createAuthMiddleware(async (contexte) => {
-            await exigerLimite("essai", contexte.body?.email, LIMITE_ESSAIS, CODE_TROP_D_ESSAIS);
+            await exigerLimite(contexte, "essai", LIMITE_ESSAIS, CODE_TROP_D_ESSAIS);
           }),
         },
       ],

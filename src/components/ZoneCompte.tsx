@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { lireCompte, type CompteConnecte } from "@/lib/compte";
 import { LienCompte } from "./EnTete";
-import { LIEN_ADMINISTRATION, LIEN_ESPACE_CLIENT, LIEN_PROFIL } from "./liens-navigation";
+import { LIEN_ADMINISTRATION, LIEN_ESPACE_CLIENT, LIEN_JOURNAL, LIEN_PROFIL } from "./liens-navigation";
 import { BoutonDeconnexion, LienInitiale, LienSeConnecter } from "./LiensCompte";
 
 // Zone du compte dans l'en-tête marine. Visiteur : « Se connecter ».
@@ -15,7 +15,8 @@ import { BoutonDeconnexion, LienInitiale, LienSeConnecter } from "./LiensCompte"
 // - « menu » (dans le menu déroulant mobile) : e-mail et « Se déconnecter » ;
 // - « liens » (parmi les liens de navigation) : « Mes réservations » et
 //   « Mon profil » pour tout compte, « Tickets » pour l'employé et
-//   l'administrateur (les pages revérifient la session et le rôle).
+//   l'administrateur, « Journal » pour l'administrateur seul (les pages
+//   revérifient la session et le rôle).
 type Disposition = "ordinateur" | "mobile" | "menu" | "liens";
 
 export function ZoneCompte({ disposition }: { disposition: Disposition }) {
@@ -37,6 +38,7 @@ async function Contenu({ disposition }: { disposition: Disposition }) {
         {/* Sur ordinateur, c'est l'initiale qui mène au profil. */}
         <LienCompte {...LIEN_PROFIL} seulementMobile />
         {compte.personnel && <LienCompte {...LIEN_ADMINISTRATION} />}
+        {compte.administrateur && <LienCompte {...LIEN_JOURNAL} />}
       </>
     );
   }
