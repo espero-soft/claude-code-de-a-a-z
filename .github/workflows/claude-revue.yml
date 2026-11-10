@@ -59,8 +59,9 @@ jobs:
                Ouvre les fichiers concernés (Read, Grep, Glob) pour le contexte, et les tests
                `*.test.ts` associés aux règles touchées.
             3. Pour chaque règle R1 à R6, détermine un statut :
-               « ✅ Respectée », « ❌ Enfreinte », « ⚠️ À vérifier » ou « — Non concernée »
-               (le diff ne touche pas cette règle).
+               « ✅ Respectée », « ❌ Enfreinte », « ⚠️ À vérifier » ou « Non concernée »
+               (le diff ne touche pas cette règle). « Non concernée » s'écrit en toutes
+               lettres, sans symbole ni tiret devant.
             4. Poste exactement UN commentaire, une seule fois, avec
                `gh pr comment ${{ github.event.pull_request.number }} --body "..."`.
                Pas d'autre commentaire, pas de commentaire en ligne, pas de modification
@@ -79,6 +80,9 @@ jobs:
 
                Ne cite que des problèmes réels, appuyés sur le diff, avec le fichier et le
                numéro de ligne dans la version de la PR. Sois concis.
+               N'utilise aucun tiret cadratin (—) ni demi-cadratin (–) dans le commentaire :
+               ni dans le tableau, ni dans le texte. Utilise à la place deux-points,
+               virgules ou parenthèses.
           claude_args: |
             --allowedTools "Read,Glob,Grep,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(gh pr comment:*)"
             --disallowedTools "Edit,Write,NotebookEdit,Bash(git commit:*),Bash(git push:*),Bash(gh pr comment --edit-last:*),Bash(gh pr review:*),Bash(gh pr merge:*)"
