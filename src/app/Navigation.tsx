@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { adminDisponible } from "@/lib/admin-tickets";
 
 // Ajouter un écran à la navigation : une ligne dans ce tableau.
+// L'administration n'existe qu'en développement (pas de connexion) : son lien
+// n'est pas affiché en production, où la page répond 404.
 const LIENS = [
   { href: "/", libelle: "Accueil" },
   { href: "/salles", libelle: "Salles" },
   { href: "/aide", libelle: "Aide" },
+  ...(adminDisponible() ? [{ href: "/admin/tickets", libelle: "Tickets" }] : []),
 ];
 
 // Actif sur la page elle-même, et sur ses sous-routes (sauf l'accueil) :

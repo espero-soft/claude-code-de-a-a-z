@@ -53,6 +53,51 @@ model Reservation {
   // vérifier le paiement.
   stripeSessionId      String?           @unique
   createdAt            DateTime          @default(now())
+  tickets              Ticket[]
 
   @@index([salleId, debut])
+}
+
+// Tickets du support (module 10) : message d'un client, trié par le modèle
+// (trierTicket) et accompagné d'un brouillon de réponse (proposerReponse).
+// Le brouillon n'est jamais envoyé : un conseiller le valide sur /admin/tickets.
+// Les valeurs reprennent celles du schéma TriTicket (src/lib/tri-ticket.ts).
+enum CategorieTicket {
+  reservation
+  paiement
+  annulation
+  autre
+}
+
+enum UrgenceTicket {
+  basse
+  normale
+  haute
+}
+
+enum StatutTicket {
+  A_TRAITER
+  VALIDE
+}
+
+model Ticket {
+  id                String          @id @default(cuid())
+  message           String
+  email             String
+  categorie         CategorieTicket
+  urgence           UrgenceTicket
+  resume            String
+  // Réservation identifiée par le tri (null si aucune ne correspond). Si elle
+  // est supprimée, le ticket reste, sans réservation.
+  reservationId     String?
+  reservation       Reservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  brouillon         String
+  aTransmettre      Boolean // un conseiller doit reprendre la main
+  motifTransmission String?
+  statut            StatutTicket    @default(A_TRAITER)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  valideLe          DateTime? // date de validation du brouillon
+
+  @@index([statut])
 }

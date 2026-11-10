@@ -1,6 +1,7 @@
-// Supprime de dev.db les réservations créées par les tests navigateur
-// (reconnues à leur e-mail). Lancé par tsx depuis les tests : le client Prisma
-// généré est un module ESM, que le chargeur de Playwright ne sait pas importer.
+// Supprime de dev.db les réservations et les tickets créés par les tests
+// navigateur (reconnus à leur e-mail). Lancé par tsx depuis les tests : le
+// client Prisma généré est un module ESM, que le chargeur de Playwright ne sait
+// pas importer.
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
 
@@ -8,6 +9,7 @@ import { prisma } from "../src/lib/prisma";
 const EMAIL_TEST = "playwright@example.com";
 
 async function main() {
+  await prisma.ticket.deleteMany({ where: { email: EMAIL_TEST } });
   await prisma.reservation.deleteMany({ where: { emailClient: EMAIL_TEST } });
 }
 

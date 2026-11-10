@@ -16,7 +16,8 @@
     "premier-appel": "tsx scripts/premier-appel.ts",
     "agent-outil": "tsx scripts/agent-outil.ts",
     "cache-prompt": "tsx scripts/cache-prompt.ts",
-    "traiter-ticket": "tsx scripts/traiter-ticket.ts"
+    "traiter-ticket": "tsx scripts/traiter-ticket.ts",
+    "importer-tickets": "tsx scripts/importer-tickets.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.7.0",
