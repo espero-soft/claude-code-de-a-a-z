@@ -31,7 +31,9 @@ export const LIMITE_ESSAIS: RegleLimite = { max: 10, fenetreMs: 60 * 60_000 };
 // moins de 1 chance sur 2 700 par jour, et il faut déjà la boîte e-mail.
 export const LIMITE_DEUXIEME_FACTEUR: RegleLimite = { max: 5, fenetreMs: 60 * 60_000 };
 
-export type TypeLimite = "envoi" | "essai" | "deuxieme-facteur";
+// « suppression » : envois du code qui confirme la suppression d'un compte
+// (même règle que LIMITE_ENVOIS).
+export type TypeLimite = "envoi" | "essai" | "deuxieme-facteur" | "suppression";
 
 export type Compteur = { nombre: number; debut: Date };
 

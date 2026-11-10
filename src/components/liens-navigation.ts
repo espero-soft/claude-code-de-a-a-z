@@ -10,6 +10,8 @@ export const LIENS = [
 // ZoneCompte selon le compte lu côté serveur. Simple confort d'affichage :
 // chaque page et ses actions revérifient la session et le rôle.
 export const LIEN_ESPACE_CLIENT = { href: "/compte", libelle: "Mes réservations" };
+// Nom, appareils connectés, suppression du compte.
+export const LIEN_PROFIL = { href: "/profil", libelle: "Mon profil" };
 // Employé et administrateur seulement.
 export const LIEN_ADMINISTRATION = { href: "/admin/tickets", libelle: "Tickets" };
 

@@ -225,6 +225,18 @@ model CodeDeuxiemeFacteurUtilise {
   expireLe  DateTime
 }
 
+// Code de confirmation de la suppression d'un compte (src/lib/suppression-compte.ts) :
+// un seul en cours par compte, envoyé par e-mail, valable 5 minutes, 3 essais,
+// et seulement dans la session qui l'a demandé. Empreinte seulement, jamais
+// le code en clair. Effacé avec le compte.
+model CodeSuppressionCompte {
+  utilisateurId String   @id
+  sessionId     String // session qui a demandé le code
+  empreinte     String // sha256 de « id du compte:code »
+  essais        Int      @default(0)
+  expireLe      DateTime
+}
+
 // Compteurs de la limite par adresse e-mail de la connexion par code
 // (src/lib/limite-connexion.ts, SECURITE.md section 10) : envois de codes et
 // essais de code, quelle que soit l'adresse IP. Table distincte de rateLimit,

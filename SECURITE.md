@@ -302,3 +302,45 @@ Vérifié dans `node_modules/better-auth/dist/plugins/two-factor/` (1.7.14) :
 
 - Vitest : `roles.test.ts` (état du second facteur, 12 heures, rôle effectif), `deuxieme-facteur.test.ts` (saisies, messages), `admin/tickets/actions.test.ts` (l'action refuse l'employé et l'administrateur sans second facteur validé). Neutraliser `roleEffectif` fait échouer 5 tests.
 - Playwright `e2e/double-authentification.spec.ts`, **sans téléphone** : le code est calculé à partir de la clé affichée par une implémentation indépendante de la RFC 6238 sur `node:crypto` (`e2e/totp.ts`, vérifiée sur les vecteurs de la RFC). Enrôlement guidé, faux code refusé, `/admin` et réservations fermés tant que le code manque, code redemandé à chaque session, code de secours à usage unique, rejeu refusé, routes dangereuses en 404, client refusé (403), 6e essai refusé même juste (429), mobile.
+
+## 14. Mon profil : nom, appareils connectés, suppression du compte (RGPD)
+
+Page `/profil` (« Mon profil » : initiale du compte dans la barre d'ordinateur, lien texte dans le menu mobile), protégée comme `/compte` (proxy optimiste, puis page et chaque Server Action de `src/app/profil/actions.ts`, qui relisent la session).
+
+### 14.1 Nom et appareils
+
+- **Nom** : `modifierNom` n'écrit que `user.name`, sur le compte de la session ; validation pure `validerNom` (`src/lib/profil.ts`) : ni vide, 80 caractères au plus, ni caractère de contrôle ou invisible (inversion du sens d'écriture, largeur nulle). Les réservations déjà faites gardent le nom de leur réservation.
+- **Appareils** = sessions Better Auth encore valables (`listerAppareils`) : navigateur et système lus dans le `User-Agent` enregistré (`decrireAppareil`, indicatif : le navigateur choisit cet en-tête), date de connexion, dernière activité, « Cet appareil ». **Seul l'identifiant de session part vers le navigateur, jamais son jeton** (`auth.api.listSessions` renverrait les jetons : non utilisé).
+- **Déconnecter un appareil** : `deleteMany` sur `{ id, userId: compte de la session }` ; la session d'un autre compte reçoit la même réponse qu'une session inexistante. La session de la requête est refusée par ce bouton (« Se déconnecter » existe). **Déconnecter les autres** : toutes les sessions du compte sauf celle-ci. Pas de cache de session (`cookieCache` désactivé) : la ligne supprimée, l'appareil est déconnecté à sa requête suivante.
+
+### 14.2 Suppression du compte
+
+1. **Nouveau code par e-mail** (`demanderCodeSuppression`) : 6 chiffres (`crypto.randomInt`), valable 5 minutes, **dans la session qui l'a demandé seulement**, 3 essais, à usage unique. Seule l'empreinte SHA-256 de « compte:code » est gardée (table `CodeSuppressionCompte`, comparaison à temps constant). 3 envois par quart d'heure (limite `suppression:<e-mail>`, table `LimiteConnexion`). La seule session ouverte (ordinateur resté allumé, cookie volé) ne suffit donc pas : il faut aussi la boîte e-mail.
+2. **Essai compté avant d'être cru** : écriture conditionnelle sur la valeur lue de `essais` ; des requêtes simultanées ne donnent pas plus de 3 essais.
+3. **Personnel** : second facteur validé dans la session exigé (la boîte e-mail seule ne lui suffit pas, section 13). **Dernier administrateur** : refus, d'après le rôle **enregistré** (`roleCompte`), pas le rôle effectif ; revérifié **dans la transaction** d'effacement (deux administrateurs qui partent en même temps : un seul y parvient).
+4. **Paiements fermés d'abord** (`fermerPaiementsEnCours`, `src/lib/suivi-paiement.ts`) : chaque réservation `EN_ATTENTE` envoyée à Stripe est actualisée (un paiement déjà fait est confirmé ou remboursé), puis sa session Checkout ouverte est fermée. Si l'une ne peut pas l'être (paiement en train d'aboutir, Stripe injoignable), **on ne supprime pas** : sinon le client paierait une réservation que plus personne ne confirmerait ni ne rembourserait.
+5. **Effacement** (`effacerCompte`, `src/lib/suppression-compte.ts`), une transaction, tout ou rien :
+
+| Donnée | Sort |
+|---|---|
+| Compte, sessions (tous les appareils), comptes de connexion, second facteur | Supprimés (cascade) |
+| Réservation payée (`CONFIRMEE`) ou envoyée à Stripe (`stripeSessionId` : encaissement puis remboursement possibles) | **Gardée, anonymisée** : nom « Client supprimé », e-mail vide, sans titulaire. Restent salle, créneau, montant, statut et référence Stripe (comptabilité). Une `EN_ATTENTE` dont le paiement vient d'être fermé passe `ANNULEE`. |
+| Réservation jamais envoyée au paiement | Supprimée |
+| Tickets du support écrits depuis cette adresse (casse et espaces ignorés) | Supprimés |
+| Codes de connexion en cours (`verification`), compteurs de limite, code de suppression | Supprimés |
+
+   E-mail **vide** plutôt que remplacé : aucune adresse ne lui correspond, donc un nouveau compte ouvert à la même adresse ne récupère jamais ces réservations par le rattachement (testé).
+6. Cookies de session retirés, redirection vers `/compte-supprime` (page statique), dernier e-mail de confirmation.
+
+### 14.3 Ce que l'on accepte
+
+- **Stripe** garde ses propres données du paiement (e-mail saisi sur Checkout) : elles relèvent de Stripe et de la comptabilité, pas de la base de l'application.
+- **Une réservation à venir déjà payée reste due** : elle bloque son créneau (R3), anonymisée, sans remboursement automatique (dit sur la page avant la suppression).
+- **Le dernier administrateur** ne peut pas partir tant qu'aucun autre n'est nommé ; nommer un administrateur depuis l'application reste à faire (section 11).
+
+### 14.4 Preuves
+
+- Vitest, **sur une vraie base SQLite temporaire** créée par `prisma migrate deploy` (`src/lib/suppression-compte.test.ts`) : ce qui reste et ce qui disparaît, ligne à ligne ; anonymisée jamais rattachée à un nouveau compte ; dernier administrateur refusé sans rien effacer, y compris pour deux suppressions simultanées. Plus le code (expiré, autre session, autre compte, essais épuisés), `refusSuppression`, `sortReservation`.
+- Vitest, actions appelées directement (`src/app/profil/actions.test.ts`) : nom écrit sur le seul compte de la session ; appareil d'un autre compte refusé comme un inexistant ; code envoyé à l'adresse du compte, gardé en empreinte ; mauvais code, autre appareil, paiement en cours, dernier administrateur : rien n'est effacé. `src/lib/profil.test.ts` (nom, navigateurs, ordre des appareils) et `src/lib/suivi-paiement.test.ts` (`fermerPaiementsEnCours`).
+- Contre-épreuves : retirer le contrôle du dernier administrateur de la transaction fait échouer 3 tests, de `refusSuppression` 4 ; retirer l'anonymisation, 2 ; retirer le filtre du compte en déconnectant un appareil, 1 ; ne plus compter l'essai, 1.
+- Playwright `e2e/profil.spec.ts` : accès par la navigation ; nom ; deux navigateurs, l'autre déconnecté perd sa session ; suppression par le code lu dans Mailpit (mauvais code d'abord), puis en base plus de compte ni de session, la réservation payée anonymisée, l'autre supprimée ; employé sans second facteur refusé.

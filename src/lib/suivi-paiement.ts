@@ -101,6 +101,34 @@ export async function actualiserReservation(
   return { reservation: await lireReservation(id), session: null };
 }
 
+// Avant de supprimer un compte (src/lib/suppression-compte.ts) : aucune de
+// ses réservations ne doit rester payable. Sinon, le client paierait après la
+// suppression une réservation que plus personne ne consulte : ni confirmée,
+// ni remboursée. Chaque réservation EN_ATTENTE envoyée à Stripe est
+// actualisée (un paiement déjà fait est confirmé ou remboursé), puis sa
+// session encore ouverte est fermée. Renvoie false si l'une n'a pas pu l'être
+// (paiement en train d'aboutir, Stripe injoignable) : on ne supprime pas.
+export async function fermerPaiementsEnCours(utilisateurId: string, maintenant: Date): Promise<boolean> {
+  const enAttente = await prisma.reservation.findMany({
+    where: { utilisateurId, statut: "EN_ATTENTE", stripeSessionId: { not: null } },
+    select: { id: true },
+  });
+  try {
+    for (const { id } of enAttente) {
+      const { reservation } = await actualiserReservation(id, maintenant);
+      if (reservation?.statut !== "EN_ATTENTE" || !reservation.stripeSessionId) continue;
+      const stripe = obtenirStripe();
+      const session = await stripe.checkout.sessions.retrieve(reservation.stripeSessionId);
+      if (session.status === "open") await stripe.checkout.sessions.expire(session.id);
+      else if (session.status !== "expired") return false; // payée, pas encore traitée
+    }
+  } catch (erreur) {
+    console.error("Fermeture des paiements en cours impossible", erreur);
+    return false;
+  }
+  return true;
+}
+
 const formatDate = new Intl.DateTimeFormat("fr-FR", {
   timeZone: FUSEAU_CENTRE,
   dateStyle: "full",

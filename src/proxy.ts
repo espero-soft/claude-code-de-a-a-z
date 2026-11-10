@@ -15,9 +15,9 @@ import { deuxiemeFacteurRecent, estPersonnel, lireRole } from "@/lib/roles";
 //    les photos de public/salles en ont un (/salles/atelier.jpg) ; sans cette
 //    exclusion, le proxy les prendrait pour des salles inconnues (404).
 //
-// 2. Pages réservées aux comptes (réserver, une réservation, /compte, /admin) : un
-//    visiteur SANS cookie de session est renvoyé vers /connexion, avec un vrai
-//    code 307. Contrôle optimiste seulement (le cookie n'est ni vérifié ni
+// 2. Pages réservées aux comptes (réserver, une réservation, /compte, /profil,
+//    /admin) : un visiteur SANS cookie de session est renvoyé vers /connexion,
+//    avec un vrai code 307. Contrôle optimiste seulement (le cookie n'est ni vérifié ni
 //    relu en base) : la page et chaque Server Action revérifient la session et
 //    le rôle (src/lib/acces.ts). Ne jamais compter sur le proxy pour protéger.
 //
@@ -32,6 +32,7 @@ export const config = {
     "/salles/:id([^/.]+)/reserver",
     "/reservations/:id([^/.]+)",
     "/compte",
+    "/profil",
     "/double-authentification",
     "/admin",
     // Sauf /admin/introuvable, la page du 404 elle-même.
@@ -44,6 +45,7 @@ function exigeCompte(chemin: string): boolean {
     chemin.endsWith("/reserver") ||
     chemin.startsWith("/reservations/") ||
     chemin === "/compte" ||
+    chemin === "/profil" ||
     chemin === "/double-authentification" ||
     chemin === "/admin" ||
     chemin.startsWith("/admin/")

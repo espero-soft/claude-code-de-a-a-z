@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { actualiserReservation, ouvrirPaiement } from "./suivi-paiement";
+import { actualiserReservation, fermerPaiementsEnCours, ouvrirPaiement } from "./suivi-paiement";
 
 // Suivi du paiement sans webhook : la session Checkout est relue auprès de
 // Stripe à la consultation et au clic sur « Payer ». R6 (annulation après
@@ -289,5 +289,56 @@ describe("ouvrirPaiement", () => {
       ok: false,
       erreur: "Cette réservation n'existe pas.",
     });
+  });
+});
+
+// Avant la suppression d'un compte : plus aucune réservation payable.
+describe("fermerPaiementsEnCours", () => {
+  it("ne regarde que les réservations en attente du compte envoyées à Stripe", async () => {
+    expect(await fermerPaiementsEnCours("claire", apres(5))).toBe(true);
+    expect(faux.findMany).toHaveBeenCalledWith({
+      where: { utilisateurId: "claire", statut: "EN_ATTENTE", stripeSessionId: { not: null } },
+      select: { id: true },
+    });
+  });
+
+  it("ferme une session Checkout encore ouverte", async () => {
+    faux.findMany.mockResolvedValue([{ id: "resa-1" }]);
+    base(reservation({ stripeSessionId: "cs_test_1" }));
+    faux.retrieve.mockResolvedValue(sessionOuverte);
+
+    expect(await fermerPaiementsEnCours("claire", apres(5))).toBe(true);
+    expect(faux.expire).toHaveBeenCalledWith("cs_test_1");
+  });
+
+  it("confirme d'abord un paiement déjà fait (il reste, pour la comptabilité)", async () => {
+    faux.findMany.mockResolvedValue([{ id: "resa-1" }]);
+    base(
+      reservation({ stripeSessionId: "cs_test_1" }),
+      reservation({ stripeSessionId: "cs_test_1", statut: "CONFIRMEE" }),
+    );
+    faux.retrieve.mockResolvedValue(sessionPayee(apres(3)));
+    faux.confirmerReservation.mockResolvedValue({ ok: true });
+
+    expect(await fermerPaiementsEnCours("claire", apres(5))).toBe(true);
+    expect(faux.confirmerReservation).toHaveBeenCalledWith("resa-1");
+    expect(faux.expire).not.toHaveBeenCalled();
+  });
+
+  it("refuse si une session ne peut pas être fermée (paiement en train d'aboutir)", async () => {
+    faux.findMany.mockResolvedValue([{ id: "resa-1" }]);
+    base(reservation({ stripeSessionId: "cs_test_1" }));
+    faux.retrieve.mockResolvedValue(sessionOuverte);
+    faux.expire.mockRejectedValue(new Error("session déjà terminée"));
+
+    expect(await fermerPaiementsEnCours("claire", apres(5))).toBe(false);
+  });
+
+  it("refuse si Stripe ne répond pas", async () => {
+    faux.findMany.mockResolvedValue([{ id: "resa-1" }]);
+    base(reservation({ stripeSessionId: "cs_test_1" }));
+    faux.retrieve.mockRejectedValue(new Error("réseau"));
+
+    expect(await fermerPaiementsEnCours("claire", apres(5))).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { clientAuth } from "@/lib/auth-client";
 import { IconeChargement } from "./icones";
+import { estActif, LIEN_PROFIL } from "./liens-navigation";
 
 // Parties interactives de la zone du compte (ZoneCompte.tsx).
 
@@ -74,5 +75,26 @@ export function BoutonDeconnexion() {
         </p>
       )}
     </>
+  );
+}
+
+// Initiale du compte, lien vers « Mon profil » dans la barre d'ordinateur
+// (dans la <nav> : son nom accessible commence par « Mon profil »).
+export function LienInitiale({ initiale, email }: { initiale: string; email: string }) {
+  const actif = estActif(LIEN_PROFIL.href, usePathname());
+  return (
+    <Link
+      href={LIEN_PROFIL.href}
+      title={`${LIEN_PROFIL.libelle} (${email})`}
+      aria-current={actif ? "page" : undefined}
+      className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white font-titres text-lg font-bold text-marine ring-offset-2 ring-offset-marine hover:ring-2 hover:ring-white/60 ${
+        actif ? "ring-2 ring-cuivre-sur-marine" : ""
+      }`}
+    >
+      <span aria-hidden="true">{initiale}</span>
+      <span className="sr-only">
+        {LIEN_PROFIL.libelle} (connecté : {email})
+      </span>
+    </Link>
   );
 }

@@ -96,9 +96,19 @@ export function BarreEnTete({
 }
 
 // Un lien de la navigation principale, souligné de cuivre quand il est actif.
-function LienPrincipal({ href, libelle, actif }: { href: string; libelle: string; actif: boolean }) {
+function LienPrincipal({
+  href,
+  libelle,
+  actif,
+  seulementMobile = false,
+}: {
+  href: string;
+  libelle: string;
+  actif: boolean;
+  seulementMobile?: boolean;
+}) {
   return (
-    <li>
+    <li className={seulementMobile ? "md:hidden" : undefined}>
       <Link
         href={href}
         aria-current={actif ? "page" : undefined}
@@ -116,8 +126,25 @@ function LienPrincipal({ href, libelle, actif }: { href: string; libelle: string
 
 // Lien réservé aux comptes (« Mes réservations », « Tickets »), placé par
 // ZoneCompte selon le compte lu côté serveur.
-export function LienCompte({ href, libelle }: { href: string; libelle: string }) {
-  return <LienPrincipal href={href} libelle={libelle} actif={estActif(href, usePathname())} />;
+// `seulementMobile` : dans le menu déroulant seulement (sur ordinateur, le
+// lien passe par l'initiale du compte, faute de place dans la barre).
+export function LienCompte({
+  href,
+  libelle,
+  seulementMobile,
+}: {
+  href: string;
+  libelle: string;
+  seulementMobile?: boolean;
+}) {
+  return (
+    <LienPrincipal
+      href={href}
+      libelle={libelle}
+      actif={estActif(href, usePathname())}
+      seulementMobile={seulementMobile}
+    />
+  );
 }
 
 export function EnTete(emplacements: EmplacementsCompte) {

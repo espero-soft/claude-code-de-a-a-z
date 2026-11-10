@@ -11,3 +11,7 @@ export const COMPTES_ROLES = {
 
 // Cliente de l'espace client (e2e/espace-client-exemple.ts), adresse vérifiée.
 export const CLAIRE = { email: `claire${DOMAINE_ROLES}`, nom: "Claire Dubois" } as const;
+
+// Client de la page « Mon profil » (e2e/profil-exemple.ts) : il change de
+// nom, déconnecte un appareil, puis supprime son compte.
+export const PAUL = { email: `paul${DOMAINE_ROLES}`, nom: "Paul Martin" } as const;

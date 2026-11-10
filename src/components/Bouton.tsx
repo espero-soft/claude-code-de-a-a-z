@@ -4,8 +4,9 @@ import { IconeChargement } from "./icones";
 
 // Charte : « principal » marine (action sans achat), « action » cuivre
 // (réserver, payer : jamais plus d'un par écran), « secondaire » contour
-// marine. Hauteur 48 px, pilule.
-export type VarianteBouton = "principal" | "action" | "secondaire";
+// marine, « danger » rouge `erreur` (action irréversible : supprimer son
+// compte ; texte blanc à 6,5 pour 1). Hauteur 48 px, pilule.
+export type VarianteBouton = "principal" | "action" | "secondaire" | "danger";
 
 const BASE =
   "inline-flex min-h-12 items-center justify-center gap-2 rounded-arrondi-pilule px-6 text-corps font-semibold transition-colors";
@@ -14,6 +15,7 @@ const VARIANTES: Record<VarianteBouton, string> = {
   principal: "bg-marine text-white hover:bg-marine-fonce",
   action: "bg-cuivre text-white hover:bg-cuivre-fonce",
   secondaire: "border-2 border-marine bg-surface text-marine hover:bg-marine-clair",
+  danger: "bg-erreur text-white hover:bg-erreur/90",
 };
 
 // Désactivé : lisible (encre-douce sur marine-clair, 5,1 pour 1), mais sans

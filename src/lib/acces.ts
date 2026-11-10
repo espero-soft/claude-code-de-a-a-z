@@ -32,6 +32,9 @@ export type Utilisateur = {
   // afficher le lien « Tickets », jamais pour ouvrir un droit.
   roleCompte: Role;
   deuxiemeFacteur: EtatDeuxiemeFacteur;
+  // Identifiant (pas le jeton) de la session de cette requête : « cet
+  // appareil » sur la page Mon profil.
+  sessionId: string;
 };
 
 // cache() : une seule lecture par requête, même si l'en-tête et la page la
@@ -72,6 +75,7 @@ export const lireUtilisateur = cache(async (): Promise<Utilisateur | null> => {
     role: roleEffectif(roleCompte, deuxiemeFacteur),
     roleCompte,
     deuxiemeFacteur,
+    sessionId: session.session.id,
   };
 });
 
