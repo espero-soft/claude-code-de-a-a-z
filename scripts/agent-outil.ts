@@ -11,7 +11,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { prisma } from "../src/lib/prisma";
-import { FUSEAU_CENTRE } from "../src/lib/reservation";
+import {
+  OUTIL_CHERCHER_RESERVATION,
+  executerOutilChercher,
+} from "../src/lib/outil-chercher-reservation";
 
 const MODELE = "claude-haiku-5-5";
 const TOURS_MAX = 5; // garde-fou : pas de boucle infinie si le modèle insiste
@@ -29,26 +32,6 @@ const MESSAGE_CLIENTE =
   "Je dois annuler : pouvez-vous me rembourser ?\n\n" +
   "Camille Martin\ncamille@example.com";
 
-// Outil exposé au modèle. strict : les arguments respectent exactement le schéma.
-const OUTIL_CHERCHER_RESERVATION: Anthropic.Tool = {
-  name: "chercher_reservation",
-  description:
-    "Renvoie les réservations d'un client, retrouvé par son adresse e-mail : " +
-    "identifiant, salle, début et fin (heure de Paris), statut et montant en euros. " +
-    "Lecture seule : ne modifie rien.",
-  strict: true,
-  input_schema: {
-    type: "object",
-    properties: {
-      email: { type: "string", description: "Adresse e-mail du client" },
-    },
-    required: ["email"],
-    additionalProperties: false,
-  },
-};
-
-const ArgumentsChercher = z.object({ email: z.string() });
-
 // Réponse finale attendue, contrainte par les sorties structurées.
 const ReponseFinale = z.object({
   categorie: z.enum(["réservation", "paiement", "annulation", "autre"]),
@@ -58,61 +41,19 @@ const ReponseFinale = z.object({
     .nullable(),
 });
 
-const formatDate = new Intl.DateTimeFormat("fr-FR", {
-  timeZone: FUSEAU_CENTRE,
-  dateStyle: "full",
-  timeStyle: "short",
-});
-const formatEuros = new Intl.NumberFormat("fr-FR", {
-  style: "currency",
-  currency: "EUR",
-});
-
-// Lecture seule : uniquement findMany, avec les champs utiles (rien de Stripe).
-async function chercherReservation(email: string) {
-  const reservations = await prisma.reservation.findMany({
-    where: { emailClient: email.trim().toLowerCase() },
-    orderBy: { debut: "asc" },
-    select: {
-      id: true,
-      debut: true,
-      fin: true,
-      statut: true,
-      montantTotalCentimes: true,
-      salle: { select: { nom: true } },
-    },
-  });
-  return reservations.map((r) => ({
-    id: r.id,
-    salle: r.salle.nom,
-    debut: formatDate.format(r.debut),
-    fin: formatDate.format(r.fin),
-    statut: r.statut,
-    montant: formatEuros.format(r.montantTotalCentimes / 100),
-  }));
-}
-
+// L'outil lui-même vit dans src/lib (partagé avec trierTicket) ; ici, on affiche
+// seulement chaque appel et son résultat.
 async function executerOutil(
   bloc: Anthropic.ToolUseBlock,
 ): Promise<Anthropic.ToolResultBlockParam> {
   console.log(`Appel d'outil  : ${bloc.name} ${JSON.stringify(bloc.input)}`);
-  try {
-    if (bloc.name !== "chercher_reservation") {
-      throw new Error(`Outil inconnu : ${bloc.name}`);
-    }
-    const { email } = ArgumentsChercher.parse(bloc.input);
-    const resultat = await chercherReservation(email);
-    console.log(`  -> ${resultat.length} réservation(s) trouvée(s)`);
-    return {
-      type: "tool_result",
-      tool_use_id: bloc.id,
-      content: JSON.stringify(resultat),
-    };
-  } catch (erreur) {
-    const message = erreur instanceof Error ? erreur.message : String(erreur);
-    console.log(`  -> erreur : ${message}`);
-    return { type: "tool_result", tool_use_id: bloc.id, content: message, is_error: true };
-  }
+  const { resultat, reservations } = await executerOutilChercher(bloc);
+  console.log(
+    resultat.is_error
+      ? `  -> erreur : ${resultat.content}`
+      : `  -> ${reservations.length} réservation(s) trouvée(s)`,
+  );
+  return resultat;
 }
 
 async function main() {
