@@ -29,14 +29,37 @@ async function ouvrir(page: Page, chemin: string) {
   return reponse;
 }
 
-// Ce que voit la personne : code HTTP, titre et texte de toute la page.
+// Titre de l'onglet tel que le serveur l'envoie, avant tout JavaScript :
+// c'est ce qu'affiche le navigateur à l'arrivée sur la page. Le premier
+// <title> du document est celui que retient l'onglet.
+function titreEnvoye(html: string): string | undefined {
+  return html.match(/<title>([^<]*)<\/title>/)?.[1];
+}
+
+// Ce que voit la personne : code HTTP, titre de l'onglet (envoyé par le
+// serveur, puis après rendu complet) et texte de toute la page.
 async function rendu(page: Page, chemin: string) {
   const reponse = await ouvrir(page, chemin);
   return {
     status: reponse?.status(),
+    titreEnvoye: titreEnvoye((await reponse?.text()) ?? ""),
     titre: await page.title(),
     texte: await page.locator("body").innerText(),
   };
+}
+
+// Navigation interne (sans recharger la page, comme un clic sur un lien
+// Next) : le titre est alors mis à jour par le JavaScript du navigateur,
+// après un court instant sans titre : on l'attend, on ne le lit pas une fois.
+async function rendreParNavigationInterne(page: Page, chemin: string, titreAttendu: string) {
+  await ouvrir(page, "/salles");
+  await page.evaluate((url) => {
+    (window as unknown as { next: { router: { push(url: string): void } } }).next.router.push(url);
+  }, chemin);
+  await page.waitForURL(`**${chemin}`);
+  await expect(page).toHaveTitle(titreAttendu);
+  // getByRole ignore la page précédente, que Next garde cachée en mémoire.
+  return page.getByRole("main").innerText();
 }
 
 // Contenu de la page, sans l'en-tête (qui affiche l'e-mail du compte connecté).
@@ -68,6 +91,26 @@ test("un autre client reçoit exactement la réponse d'une réservation inexista
   const autre = await rendu(page, `/reservations/${reservationId}`);
   const inexistante = await rendu(page, "/reservations/cette-reservation-n-existe-pas");
   expect(autre).toEqual(inexistante);
+  // Le titre de l'onglet ne trahit rien, dès l'arrivée sur la page : celui
+  // de la page introuvable, pas « Votre réservation ».
+  expect(autre.titreEnvoye).toBe("Page introuvable");
+  expect(autre.titre).toBe("Page introuvable");
+  // Page introuvable en français, au design Réunéa (pas celle de Next).
+  await expect(page.getByRole("heading", { level: 1, name: "Page introuvable" })).toBeVisible();
+  await expect(page.getByText("This page could not be found")).toHaveCount(0);
+
+  // Même chose en arrivant par une navigation interne.
+  const autreInterne = await rendreParNavigationInterne(
+    page,
+    `/reservations/${reservationId}`,
+    "Page introuvable",
+  );
+  const inexistanteInterne = await rendreParNavigationInterne(
+    page,
+    "/reservations/inexistante",
+    "Page introuvable",
+  );
+  expect(autreInterne).toEqual(inexistanteInterne);
 
   expect(autre.texte).not.toContain(clientA.nom);
   expect(autre.texte).not.toContain(clientA.email);
@@ -85,7 +128,9 @@ test("un client ne voit pas une réservation sans titulaire (créée avant les c
 
 test("le titulaire voit sa réservation et peut la payer", async ({ page }) => {
   await seConnecter(page, clientA.email);
-  await ouvrir(page, `/reservations/${reservationId}`);
+  const { titreEnvoye: titre } = await rendu(page, `/reservations/${reservationId}`);
+  expect(titre).toBe("Votre réservation");
+  await expect(page).toHaveTitle("Votre réservation");
 
   await expect(
     page.getByRole("heading", { name: "Demande de réservation enregistrée" }),

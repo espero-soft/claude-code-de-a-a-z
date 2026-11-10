@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { Suspense, type ReactNode } from "react";
+import { cache, Suspense, type ReactNode } from "react";
 import { BadgeStatut } from "@/components/Badge";
 import { LienBouton } from "@/components/Bouton";
 import { Carte } from "@/components/Carte";
@@ -36,9 +36,38 @@ import {
 import { BoutonPayer } from "./BoutonPayer";
 import { DelaiRestant } from "./DelaiRestant";
 
-export const metadata: Metadata = {
-  title: "Votre réservation",
-};
+// Le titre de l'onglet est décidé par le serveur, APRÈS le contrôle d'accès :
+// un titre statique (« Votre réservation ») partirait dans la coquille avant
+// le contrôle, et ne serait remplacé par celui de la page introuvable que par
+// le JavaScript du navigateur, selon la façon d'arriver sur la page. L'onglet
+// trahissait alors qu'une réservation existe. Ici, ni titulaire ni personnel :
+// notFound(), et le titre est celui de app/not-found.tsx, exactement comme
+// pour une réservation inexistante.
+export async function generateMetadata({
+  params,
+}: PageProps<"/reservations/[id]">): Promise<Metadata> {
+  const { id } = await params;
+  await exigerAccesReservation(id);
+  return { title: "Votre réservation" };
+}
+
+// Contrôle d'accès commun au titre et à la page (une seule lecture par
+// requête grâce à cache()). Visiteur : connexion d'abord, que la réservation
+// existe ou non. Ni titulaire ni personnel : même réponse qu'une réservation
+// inexistante. Fait AVANT toute lecture complète ou écriture (actualiser une
+// réservation peut la confirmer, l'annuler ou la rembourser).
+const exigerAccesReservation = cache(async (id: string) => {
+  await connection();
+  const utilisateur = await lireUtilisateur();
+  if (!utilisateur) {
+    redirect(adresseConnexion(`/reservations/${id}`));
+  }
+  const titulaire = await lireTitulaireReservation(id);
+  if (!titulaire || !peutVoirReservation(utilisateur, titulaire)) {
+    notFound();
+  }
+  return utilisateur;
+});
 
 const formatDate = new Intl.DateTimeFormat("fr-FR", {
   timeZone: FUSEAU_CENTRE,
@@ -92,21 +121,7 @@ export default function ReservationPage({ params }: PageProps<"/reservations/[id
 }
 
 async function SuiviReservation({ id }: { id: string }) {
-  await connection();
-
-  // Contrôle d'accès AVANT toute lecture complète ou écriture (actualiser
-  // une réservation peut la confirmer, l'annuler ou la rembourser).
-  // Visiteur : connexion d'abord, que la réservation existe ou non.
-  const utilisateur = await lireUtilisateur();
-  if (!utilisateur) {
-    redirect(adresseConnexion(`/reservations/${id}`));
-  }
-  // Ni titulaire, ni personnel : exactement la même réponse qu'une
-  // réservation inexistante (on ne confirme pas qu'elle existe).
-  const titulaire = await lireTitulaireReservation(id);
-  if (!titulaire || !peutVoirReservation(utilisateur, titulaire)) {
-    notFound();
-  }
+  const utilisateur = await exigerAccesReservation(id);
 
   const { reservation, verifiee } = await chargerReservation(id);
   if (!reservation) {
