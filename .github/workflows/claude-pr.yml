@@ -1,0 +1,75 @@
+# Claude traite une pull request quand on lui pose l'étiquette « claude » :
+# il lit la description de la PR, fait ce qui y est demandé sur la branche
+# de la PR, lance npm test, pousse un commit et commente la PR.
+name: Claude sur PR étiquetée
+
+on:
+  pull_request:
+    types: [labeled]
+
+# Aucun droit par défaut ; le job ne reçoit que ce dont il a besoin.
+permissions: {}
+
+# Une seule exécution à la fois par PR (une seconde étiquette attend la première).
+concurrency:
+  group: claude-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    # Seulement l'étiquette « claude », et seulement pour une branche de ce dépôt
+    # (pas de fork : on ne pourrait pas y pousser, et les secrets n'y sont pas transmis).
+    if: >-
+      github.event.label.name == 'claude' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write        # modifier les fichiers et pousser le commit
+      pull-requests: write   # lire la PR et la commenter
+    env:
+      # Lu par prisma.config.ts lors de « prisma generate » (postinstall).
+      DATABASE_URL: file:./dev.db
+    steps:
+      - name: Récupérer la branche de la PR
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # Le nom de la branche (pas le SHA) : sinon HEAD est détaché et on ne peut pas pousser.
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          # L'action Claude installe ses propres identifiants git.
+          persist-credentials: false
+
+      - name: Installer Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Lancer Claude
+        uses: anthropics/claude-code-action@3b7e1a45ca6f231c62605aabcf79e6a41b08c7da # v1.0.263
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Jeton éphémère du workflow, limité aux permissions du job ci-dessus.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Dépôt : ${{ github.repository }}
+            Pull request : #${{ github.event.pull_request.number }}
+            Branche (déjà extraite) : ${{ github.event.pull_request.head.ref }}
+
+            1. Lis la description de la PR avec `gh pr view ${{ github.event.pull_request.number }}`.
+               Elle contient la demande à réaliser.
+            2. Réalise cette demande sur la branche actuelle, en respectant CLAUDE.md
+               (code et textes en français, règles métier R1 à R6, montants en centimes).
+            3. Lance `npm test`. Si des tests échouent, corrige-les ; s'ils échouent encore,
+               ne pousse rien.
+            4. Si les tests passent : `git add` des fichiers modifiés, un commit au message
+               en français, puis `git push origin HEAD:${{ github.event.pull_request.head.ref }}`.
+            5. Termine toujours par un commentaire sur la PR (`gh pr comment`) qui résume
+               les changements, le résultat de `npm test` et, le cas échéant, ce qui bloque.
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm test),Bash(npx vitest:*),Bash(git status),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin HEAD:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
+            --max-turns 40
