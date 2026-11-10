@@ -16,6 +16,12 @@ describe("calculerMontant (règle R5)", () => {
     expect(calculerMontant(PRIX, debut, fin)).toBe(6000);
   });
 
+  it("arrondit au centime supérieur un prix impair sur 1 h 30", () => {
+    // 40,01 € de l'heure : 4001 × 1,5 = 6001,5 centimes, arrondi à 6002 (60,02 €).
+    const fin = new Date("2026-11-10T10:30:00");
+    expect(calculerMontant(4001, debut, fin)).toBe(6002);
+  });
+
   it("3 h coûtent trois heures", () => {
     const fin = new Date("2026-11-10T12:00:00");
     expect(calculerMontant(PRIX, debut, fin)).toBe(12000);
