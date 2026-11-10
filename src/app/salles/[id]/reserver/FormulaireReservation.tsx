@@ -64,6 +64,8 @@ export function FormulaireReservation({
 
   return (
     <form ref={formulaire} action={action} noValidate className="space-y-6">
+      {/* `required` n'est annoncé qu'aux lecteurs d'écran : on le dit à tous. */}
+      <p className="text-petit text-encre-douce">Tous les champs sont obligatoires.</p>
       <Champ
         id="date"
         libelle="Date"

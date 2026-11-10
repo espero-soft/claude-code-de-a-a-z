@@ -78,7 +78,7 @@ async function chargerMotif(reservation: ReservationLue): Promise<MotifAnnulatio
 
 export default function ReservationPage({ params }: PageProps<"/reservations/[id]">) {
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 md:py-12">
+    <main id="contenu" className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 md:py-12">
       <Suspense fallback={<p className="text-encre-douce">Chargement de la réservation…</p>}>
         {params.then(({ id }) => (
           <SuiviReservation id={id} />
@@ -359,20 +359,20 @@ function Detail({
         Détail de la réservation
       </h2>
       <div className="mt-4 grid gap-6 md:grid-cols-[minmax(0,1fr)_15rem]">
+        {/* Chaque <div> du <dl> ne contient qu'un <dt> et un <dd> (structure
+            valide pour les lecteurs d'écran) : l'icône est dans le <dt>. */}
         <dl className="space-y-3">
           {lignes.map(({ icone, libelle, valeur, majuscule }) => (
-            <div key={libelle} className="flex items-start gap-3">
-              <span className="mt-0.5 shrink-0 text-encre-douce">{icone}</span>
-              <div className="min-w-0 sm:flex sm:gap-2">
-                <dt className="text-petit text-encre-douce sm:w-20 sm:shrink-0 sm:pt-0.5">
-                  {libelle}
-                </dt>
-                <dd
-                  className={`font-semibold break-words ${majuscule ? "first-letter:uppercase" : ""}`}
-                >
-                  {valeur}
-                </dd>
-              </div>
+            <div key={libelle} className="sm:flex sm:items-start sm:gap-2">
+              <dt className="flex items-center gap-3 text-petit text-encre-douce sm:w-[7.75rem] sm:shrink-0 sm:pt-0.5">
+                <span className="shrink-0">{icone}</span>
+                {libelle}
+              </dt>
+              <dd
+                className={`min-w-0 pl-8 font-semibold break-words sm:pl-0 ${majuscule ? "first-letter:uppercase" : ""}`}
+              >
+                {valeur}
+              </dd>
             </div>
           ))}
         </dl>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { IconeFermer, IconeMenu } from "./icones";
 import { estActif, LIENS } from "./liens-navigation";
 import { Logo } from "./Logo";
@@ -14,9 +14,10 @@ import { Logo } from "./Logo";
 export function BarreEnTete({ cheminActif }: { cheminActif: string | null }) {
   const [menuOuvert, setMenuOuvert] = useState(false);
   const idMenu = useId();
+  const boutonMenu = useRef<HTMLButtonElement>(null);
 
   return (
-    <header className="relative z-20 bg-marine text-white">
+    <header className="zone-marine relative z-20 bg-marine text-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3 sm:px-6">
         {/* Le logo reste hors de la <nav> : son nom ne doit pas se confondre
             avec le lien « Accueil » de la navigation. */}
@@ -27,10 +28,15 @@ export function BarreEnTete({ cheminActif }: { cheminActif: string | null }) {
         <nav
           aria-label="Navigation principale"
           onKeyDown={(evenement) => {
-            if (evenement.key === "Escape") setMenuOuvert(false);
+            if (evenement.key !== "Escape" || !menuOuvert) return;
+            setMenuOuvert(false);
+            // Le lien qui avait le focus disparaît avec le menu : le focus
+            // revient sur le bouton, sinon il serait perdu (retour en haut de page).
+            boutonMenu.current?.focus();
           }}
         >
           <button
+            ref={boutonMenu}
             type="button"
             aria-expanded={menuOuvert}
             aria-controls={idMenu}

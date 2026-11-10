@@ -1,10 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { Bouton } from "@/components/Bouton";
+import { Encadre } from "@/components/Encadre";
+import { IconeCoche } from "@/components/icones";
 import { validerBrouillon, type EtatValidation } from "./actions";
 
 const etatInitial: EtatValidation = {};
 
+// Bouton principal marine (charte : le cuivre est réservé à l'achat).
 export function BoutonValider({ ticketId }: { ticketId: string }) {
   const [etat, action, enCours] = useActionState(
     validerBrouillon.bind(null, ticketId),
@@ -12,19 +16,16 @@ export function BoutonValider({ ticketId }: { ticketId: string }) {
   );
 
   return (
-    <form action={action} className="mt-4 space-y-3">
+    <form action={action} className="mt-4 flex flex-col items-stretch gap-3 sm:items-end">
       {etat.erreur && (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <Encadre ton="erreur" role="alert" className="w-full">
           {etat.erreur}
-        </p>
+        </Encadre>
       )}
-      <button
-        type="submit"
-        disabled={enCours}
-        className="inline-flex items-center rounded-full bg-orange-600 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-wait disabled:opacity-60"
-      >
-        {enCours ? "Validation…" : "Valider le brouillon"}
-      </button>
+      <Bouton type="submit" enCours={enCours} libelleEnCours="Validation…">
+        <IconeCoche />
+        Valider le brouillon
+      </Bouton>
     </form>
   );
 }

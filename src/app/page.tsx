@@ -45,7 +45,7 @@ const ETAPES = [
 
 export default function Accueil() {
   return (
-    <main className="flex-1">
+    <main id="contenu" className="flex-1">
       <Accroche />
       <Atouts />
 

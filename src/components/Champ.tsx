@@ -18,7 +18,8 @@ const CLASSES_CONTROLE =
   "block min-h-12 w-full rounded-arrondi-s border bg-surface px-4 text-corps text-encre placeholder:text-encre-douce";
 
 function classesControle(erreur: string | undefined, avecIcone: boolean): string {
-  return `${CLASSES_CONTROLE} ${erreur ? "border-erreur border-2" : "border-bordure"} ${
+  // bordure-forte : contour du champ à 3,6 pour 1 sur blanc (WCAG 1.4.11).
+  return `${CLASSES_CONTROLE} ${erreur ? "border-erreur border-2" : "border-bordure-forte"} ${
     avecIcone ? "pl-11" : ""
   }`;
 }

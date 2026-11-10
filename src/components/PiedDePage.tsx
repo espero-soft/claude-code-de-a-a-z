@@ -7,7 +7,7 @@ import { LIENS } from "./liens-navigation";
 // adresse, aucun téléphone, aucun e-mail, aucun réseau social.
 export function PiedDePage() {
   return (
-    <footer className="mt-auto bg-marine-fonce text-white">
+    <footer className="zone-marine mt-auto bg-marine-fonce text-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-start md:justify-between">
         <nav aria-label="Navigation du pied de page">
           <ul className="flex flex-wrap gap-x-2 gap-y-1">

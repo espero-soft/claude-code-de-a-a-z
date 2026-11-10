@@ -38,7 +38,7 @@ export default function ReserverPage({
   params,
 }: PageProps<"/salles/[id]/reserver">) {
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 md:py-10">
+    <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 md:py-10">
       <Suspense fallback={<p className="text-encre-douce">Chargement de la salle…</p>}>
         {params.then(({ id }) => (
           <Reservation id={id} />
@@ -89,6 +89,7 @@ async function Reservation({ id }: { id: string }) {
               nom={salle.nom}
               sizes="(min-width: 1024px) 352px, 112px"
               enPriorite
+              decorative
               className="aspect-[4/3] w-28 shrink-0 rounded-arrondi-m lg:aspect-[3/2] lg:w-full lg:rounded-none"
             />
             <div className="min-w-0 lg:p-6">

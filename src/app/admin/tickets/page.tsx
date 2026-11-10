@@ -2,8 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
+import { Badge, type TonBadge } from "@/components/Badge";
+import { Carte } from "@/components/Carte";
+import { Encadre } from "@/components/Encadre";
+import {
+  IconeAlerte,
+  IconeEnveloppe,
+  IconeHorloge,
+  IconePersonne,
+} from "@/components/icones";
 import { adminDisponible, ordonnerTickets } from "@/lib/admin-tickets";
+import { formaterHeure, formaterPlage, formaterPrix } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { FUSEAU_CENTRE } from "@/lib/reservation";
 import { BoutonValider } from "./BoutonValider";
@@ -18,19 +28,24 @@ export const metadata: Metadata = adminDisponible()
     }
   : {};
 
-const formatPrix = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
-const formatDate = new Intl.DateTimeFormat("fr-FR", {
+const formatJour = new Intl.DateTimeFormat("fr-FR", {
   timeZone: FUSEAU_CENTRE,
-  dateStyle: "full",
-  timeStyle: "short",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
 });
 
-const formatDateCourte = new Intl.DateTimeFormat("fr-FR", {
+const formatJourComplet = new Intl.DateTimeFormat("fr-FR", {
   timeZone: FUSEAU_CENTRE,
-  dateStyle: "short",
-  timeStyle: "short",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
 });
+
+// « 10 novembre 2026 à 14 h 05 » (charte : heures « 14 h 05 », pas « 14:05 »).
+function formaterMoment(date: Date): string {
+  return `${formatJour.format(date)} à ${formaterHeure(date)}`;
+}
 
 const libelleCategorie = {
   reservation: "Réservation",
@@ -39,11 +54,13 @@ const libelleCategorie = {
   autre: "Autre",
 } as const;
 
-const urgences = {
-  haute: { libelle: "Urgence haute", classe: "bg-red-100 text-red-800" },
-  normale: { libelle: "Urgence normale", classe: "bg-amber-100 text-amber-800" },
-  basse: { libelle: "Urgence basse", classe: "bg-slate-100 text-slate-700" },
-} as const;
+// Plan de refonte : urgence haute en `erreur`, normale en `attente`, basse
+// neutre ; toujours écrite en toutes lettres.
+const urgences: Record<"haute" | "normale" | "basse", { libelle: string; ton: TonBadge; icone: ReactNode }> = {
+  haute: { libelle: "Urgence haute", ton: "erreur", icone: <IconeAlerte className="size-4" /> },
+  normale: { libelle: "Urgence normale", ton: "attente", icone: null },
+  basse: { libelle: "Urgence basse", ton: "neutre", icone: null },
+};
 
 const libelleStatutReservation = {
   EN_ATTENTE: "en attente de paiement",
@@ -51,6 +68,9 @@ const libelleStatutReservation = {
   ANNULEE: "annulée",
 } as const;
 
+// Maquette 05, sans ce qui n'existe pas (plan de refonte) : ni filtres, ni
+// menu « Clients » ou « Administration », ni numéro de ticket inventé, ni nom
+// de client (un ticket n'a qu'un e-mail), ni brouillon modifiable.
 export default function TicketsPage() {
   // Pas de connexion dans le projet : en production, la page n'existe pas.
   // Appelé avant tout rendu, notFound() est résolu dès le build : la page
@@ -60,19 +80,18 @@ export default function TicketsPage() {
   }
 
   return (
-    <main className="flex-1 bg-slate-50 px-6 py-16 text-slate-900">
-      <div className="mx-auto max-w-3xl">
-        <p className="text-sm font-semibold text-orange-600">Administration</p>
-        <h1 className="mt-2 text-4xl font-bold tracking-tight">Tickets du support</h1>
-        <p className="mt-4 text-lg text-slate-600">
-          Les messages des clients, triés par le modèle, les plus urgents d&apos;abord.
-          Chaque brouillon est à relire : le valider ne l&apos;envoie pas au client.
-        </p>
+    <main id="contenu" className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 md:py-16">
+      <p className="sur-titre text-encre-douce">Administration</p>
+      <h1 className="mt-2 text-titre-1 text-marine">Tickets du support</h1>
+      <span aria-hidden="true" className="mt-4 block h-1 w-16 rounded-full bg-cuivre" />
+      <p className="mt-4 max-w-2xl text-lg leading-7 text-encre-douce">
+        Les messages des clients, triés par le modèle, les plus urgents d&apos;abord. Chaque
+        brouillon est à relire : le valider ne l&apos;envoie pas au client.
+      </p>
 
-        <Suspense fallback={<p className="mt-10 text-slate-500">Chargement des tickets…</p>}>
-          <ListeTickets />
-        </Suspense>
-      </div>
+      <Suspense fallback={<p className="mt-10 text-encre-douce">Chargement des tickets…</p>}>
+        <ListeTickets />
+      </Suspense>
     </main>
   );
 }
@@ -89,6 +108,7 @@ async function ListeTickets() {
           select: {
             id: true,
             debut: true,
+            fin: true,
             statut: true,
             montantTotalCentimes: true,
             salle: { select: { nom: true } },
@@ -100,7 +120,7 @@ async function ListeTickets() {
 
   if (tickets.length === 0) {
     return (
-      <p className="mt-10 text-slate-600">
+      <p className="mt-10 text-encre-douce">
         Aucun ticket pour le moment. Lancer <code>npm run importer-tickets</code> pour
         importer les exemples.
       </p>
@@ -112,90 +132,120 @@ async function ListeTickets() {
       {tickets.map((ticket) => {
         const urgence = urgences[ticket.urgence];
         const reservation = ticket.reservation;
+        const idResume = `resume-${ticket.id}`;
         return (
-          <li
+          <Carte
+            as="li"
             key={ticket.id}
-            aria-labelledby={`resume-${ticket.id}`}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            aria-labelledby={idResume}
+            avecMarge={false}
+            className="grid overflow-hidden md:grid-cols-[15rem_minmax(0,1fr)]"
           >
-            <ul aria-label="Tri" className="flex flex-wrap gap-2 text-sm font-medium">
-              <li className="rounded-full bg-orange-100 px-3 py-1 text-orange-800">
-                {libelleCategorie[ticket.categorie]}
-              </li>
-              <li className={`rounded-full px-3 py-1 ${urgence.classe}`}>{urgence.libelle}</li>
-              {ticket.aTransmettre && (
-                <li className="rounded-full bg-violet-100 px-3 py-1 text-violet-800">
-                  Conseiller requis
+            {/* Zone de gauche : statut, tri du modèle et date de réception. */}
+            <div className="border-b border-bordure bg-fond/60 p-5 md:border-r md:border-b-0 md:p-6">
+              <ul aria-label="Tri du ticket" className="flex flex-wrap gap-2 md:flex-col md:items-start">
+                <li>
+                  {ticket.statut === "VALIDE" ? (
+                    <Badge ton="succes">Brouillon validé</Badge>
+                  ) : (
+                    <Badge ton="contour" icone={<IconeHorloge className="size-4" />}>
+                      À traiter
+                    </Badge>
+                  )}
                 </li>
-              )}
-              {ticket.statut === "VALIDE" && (
-                <li className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
-                  Brouillon validé
+                <li>
+                  <Badge ton={urgence.ton} icone={urgence.icone}>
+                    {urgence.libelle}
+                  </Badge>
                 </li>
-              )}
-            </ul>
-
-            <h2 id={`resume-${ticket.id}`} className="mt-4 text-lg font-semibold">
-              {ticket.resume}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {ticket.email} · reçu le {formatDateCourte.format(ticket.createdAt)}
-            </p>
-
-            {ticket.aTransmettre && ticket.motifTransmission && (
-              <p className="mt-4 rounded-lg bg-violet-50 p-3 text-sm text-violet-900">
-                À transmettre à un conseiller : {ticket.motifTransmission}
+                <li>
+                  <Badge ton="accent" icone={null}>
+                    {libelleCategorie[ticket.categorie]}
+                  </Badge>
+                </li>
+                {ticket.aTransmettre && (
+                  <li>
+                    <Badge ton="neutre" icone={<IconePersonne className="size-4" />}>
+                      Conseiller requis
+                    </Badge>
+                  </li>
+                )}
+              </ul>
+              <p className="mt-4 text-petit text-encre-douce">
+                Reçu le {formaterMoment(ticket.createdAt)}
               </p>
-            )}
+            </div>
 
-            <dl className="mt-4 space-y-1 text-sm">
-              <div className="flex gap-2">
-                <dt className="text-slate-500">Réservation :</dt>
-                <dd>
+            {/* Zone de droite : résumé, message, brouillon, action. */}
+            <div className="min-w-0 p-5 md:p-6">
+              <h2 id={idResume} className="text-titre-3 text-marine">
+                {ticket.resume}
+              </h2>
+              <p className="mt-1 flex items-center gap-2 text-petit text-encre-douce">
+                <IconeEnveloppe className="size-4 shrink-0" />
+                <span className="break-all">{ticket.email}</span>
+              </p>
+
+              {ticket.aTransmettre && ticket.motifTransmission && (
+                <Encadre ton="information" titre="À transmettre à un conseiller" className="mt-4">
+                  <span className="first-letter:uppercase inline-block">
+                    {ticket.motifTransmission}
+                  </span>
+                </Encadre>
+              )}
+
+              <dl className="mt-4 text-petit">
+                <dt className="inline text-encre-douce">Réservation : </dt>
+                <dd className="inline">
                   {reservation ? (
                     <>
                       <Link
                         href={`/reservations/${reservation.id}`}
-                        className="font-medium text-orange-600 hover:text-orange-700"
+                        className="rounded-arrondi-s font-semibold text-marine underline underline-offset-4 hover:text-marine-fonce"
                       >
                         {reservation.salle.nom}
                       </Link>
-                      , <span className="first-letter:uppercase">{formatDate.format(reservation.debut)}</span>,{" "}
-                      {formatPrix.format(reservation.montantTotalCentimes / 100)},{" "}
+                      , {formatJourComplet.format(reservation.debut)},{" "}
+                      {formaterPlage(reservation.debut, reservation.fin)},{" "}
+                      {formaterPrix(reservation.montantTotalCentimes)},{" "}
                       {libelleStatutReservation[reservation.statut]}
                     </>
                   ) : (
                     "aucune"
                   )}
                 </dd>
+              </dl>
+
+              {/* Des <div> et non des <section> nommées : quatre tickets
+                  donneraient quatre repères « Message du client » identiques.
+                  Les titres h3 suffisent à la navigation. */}
+              <div className="mt-5">
+                <h3 className="font-sans text-petit font-bold text-encre">Message du client</h3>
+                <p className="mt-2 rounded-arrondi-s bg-fond px-4 py-3 whitespace-pre-line text-encre">
+                  {ticket.message}
+                </p>
               </div>
-            </dl>
 
-            <details className="mt-4 text-sm">
-              <summary className="cursor-pointer text-slate-600">Message du client</summary>
-              <p className="mt-2 whitespace-pre-line rounded-lg bg-slate-50 p-3 text-slate-700">
-                {ticket.message}
-              </p>
-            </details>
+              <div className="mt-5">
+                <h3 className="font-sans text-petit font-bold text-encre">
+                  Brouillon de réponse{" "}
+                  <span className="font-normal text-encre-douce">(non envoyé)</span>
+                </h3>
+                <p className="mt-2 rounded-arrondi-s border border-bordure border-l-4 border-l-marine bg-surface px-4 py-3 leading-7 whitespace-pre-line text-encre">
+                  {ticket.brouillon}
+                </p>
+              </div>
 
-            <section aria-label="Brouillon de réponse" className="mt-4">
-              <h3 className="text-sm font-semibold text-slate-500">
-                Brouillon de réponse (non envoyé)
-              </h3>
-              <p className="mt-2 whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-800">
-                {ticket.brouillon}
-              </p>
-            </section>
-
-            {ticket.statut === "A_TRAITER" ? (
-              <BoutonValider ticketId={ticket.id} />
-            ) : (
-              <p className="mt-4 text-sm text-emerald-700">
-                Validé le {ticket.valideLe ? formatDateCourte.format(ticket.valideLe) : "?"}.
-                Rien n&apos;a été envoyé au client.
-              </p>
-            )}
-          </li>
+              {ticket.statut === "A_TRAITER" ? (
+                <BoutonValider ticketId={ticket.id} />
+              ) : (
+                <p className="mt-4 text-petit font-semibold text-succes">
+                  Validé le {ticket.valideLe ? formaterMoment(ticket.valideLe) : "?"}. Rien
+                  n&apos;a été envoyé au client.
+                </p>
+              )}
+            </div>
+          </Carte>
         );
       })}
     </ol>

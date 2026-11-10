@@ -26,6 +26,11 @@
      charte n'y fait que 2 pour 1 ; celui-ci 4,2 pour 1 (minimum 3 pour 1
      pour un élément graphique). Jamais pour du texte ni sur fond clair. */
   --color-cuivre-sur-marine: #d9844a;
+  /* Hors tokens.json : `bordure` ne fait que 1,4 pour 1 sur blanc, trop pâle
+     pour repérer un champ (WCAG 1.4.11 : 3 pour 1). Même teinte, plus
+     soutenue : 3,6 pour 1 sur surface, 3,3 sur fond. Pour le contour des
+     champs et les grands textes décoratifs (« 404 »), pas pour les cartes. */
+  --color-bordure-forte: #8c8677;
 
   /* Familles : les variables --font-playfair et --font-manrope sont posées
      par next/font sur <html> (layout.tsx). */
@@ -92,6 +97,12 @@
   :focus-visible {
     outline: 3px solid var(--color-cuivre);
     outline-offset: 2px;
+  }
+
+  /* Sur marine (en-tête, pied de page), le cuivre ne fait que 2 pour 1 :
+     anneau en cuivre-sur-marine (4,2 pour 1, minimum 3 pour 1). */
+  .zone-marine :focus-visible {
+    outline-color: var(--color-cuivre-sur-marine);
   }
 
   /* Sur-titres : capitales espacées, 12 px. */

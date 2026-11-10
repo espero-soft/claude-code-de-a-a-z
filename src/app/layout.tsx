@@ -34,6 +34,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${playfair.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Lien d'évitement : premier arrêt du clavier, visible au focus.
+            Chaque page porte id="contenu" sur son <main>. */}
+        <nav aria-label="Accès rapide">
+          <a
+            href="#contenu"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-arrondi-s focus:bg-surface focus:px-4 focus:font-semibold focus:text-marine focus:shadow-carte"
+          >
+            Aller au contenu
+          </a>
+        </nav>
         {/* Avec Cache Components, usePathname suspend sur les routes à
             paramètre inconnu au build (/salles/[id]) : la barre sans lien
             actif sert de fallback pendant le prérendu. */}

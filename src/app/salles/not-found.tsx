@@ -8,11 +8,12 @@ import { IconeFleche } from "@/components/icones";
 // réservé à réserver et payer. Le centre ne loue que des salles de réunion.
 export default function SalleIntrouvable() {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 items-center px-4 py-12 sm:px-6 md:py-20">
+    <main id="contenu" className="mx-auto flex w-full max-w-6xl flex-1 items-center px-4 py-12 sm:px-6 md:py-20">
       <div className="max-w-xl">
         <p
           aria-hidden="true"
-          className="font-titres text-[96px] leading-none font-bold text-bordure md:text-[144px]"
+          // bordure-forte : pâle mais lisible (3,3 pour 1, grand texte).
+          className="font-titres text-[96px] leading-none font-bold text-bordure-forte md:text-[144px]"
         >
           404
         </p>

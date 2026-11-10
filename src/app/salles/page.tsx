@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 // carte entière mène à la fiche, où se trouve « Réserver cette salle ».
 export default function SallesPage() {
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 md:py-16">
+    <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 md:py-16">
       <h1 className="text-titre-1 text-marine">Nos salles de réunion</h1>
       <span aria-hidden="true" className="mt-4 block h-1 w-16 rounded-full bg-cuivre" />
       <p className="mt-4 max-w-2xl text-lg leading-7 text-encre-douce">

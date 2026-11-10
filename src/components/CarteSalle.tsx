@@ -41,7 +41,8 @@ export function CarteSalle({
       avecMarge={false}
       className="group relative flex flex-col transition-shadow hover:shadow-lg"
     >
-      <PhotoSalle photo={salle.photo} nom={salle.nom} sizes={sizes} />
+      {/* Le nom suit dans le titre (lien de la carte) : photo décorative. */}
+      <PhotoSalle photo={salle.photo} nom={salle.nom} sizes={sizes} decorative />
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-3">
           <Titre className="text-titre-3 text-marine">

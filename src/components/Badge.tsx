@@ -4,13 +4,15 @@ import { IconeAnnule, IconeHorloge, IconeSucces } from "./icones";
 // Badge en pilule, toujours avec un mot (jamais la couleur seule).
 // Couleurs d'état : texte blanc sur succes, attente ou erreur, couples
 // garantis à 4,5 pour 1 par la charte (les fonds pâles ne le sont pas).
-export type TonBadge = "succes" | "attente" | "erreur" | "neutre" | "accent";
+export type TonBadge = "succes" | "attente" | "erreur" | "neutre" | "contour" | "accent";
 
 const TONS: Record<TonBadge, string> = {
   succes: "bg-succes text-white",
   attente: "bg-attente text-white",
   erreur: "bg-erreur text-white",
   neutre: "bg-marine-clair text-marine",
+  // Contour marine sur surface (11,6 pour 1) : état à faire, sans couleur d'état.
+  contour: "border border-marine bg-surface text-marine",
   // Équipements : fond cuivre-clair, texte cuivre-fonce (6,8 pour 1).
   accent: "bg-cuivre-clair text-cuivre-fonce",
 };

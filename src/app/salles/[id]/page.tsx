@@ -39,7 +39,7 @@ export async function generateMetadata({
 
 export default function SallePage({ params }: PageProps<"/salles/[id]">) {
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 md:py-10">
+    <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 md:py-10">
       {/* L'identifiant n'est connu qu'à la requête : la coquille part tout
           de suite, la fiche arrive dès que la salle est lue. */}
       <Suspense fallback={<p className="text-encre-douce">Chargement de la salle…</p>}>
@@ -147,7 +147,9 @@ async function FicheSalle({ id }: { id: string }) {
 // lien « ← Nos salles » (maquette 04). Un seul des deux est rendu visible,
 // l'autre est en display: none, donc absent de l'arbre d'accessibilité.
 function FilAriane({ nomSalle }: { nomSalle: string }) {
-  const lien = "rounded-arrondi-s text-encre-douce underline-offset-4 hover:text-marine hover:underline";
+  // Zone cliquable de 44 px de haut (charte), même pour les liens du fil d'Ariane.
+  const lien =
+    "inline-flex min-h-11 items-center rounded-arrondi-s text-encre-douce underline-offset-4 hover:text-marine hover:underline";
   return (
     <>
       <nav aria-label="Fil d'Ariane" className="hidden text-petit md:block">
