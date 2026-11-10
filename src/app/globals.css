@@ -1,26 +1,96 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Jetons de design/tokens.json (charte Réunéa), déclarés en variables
+   Tailwind 4 : chaque variable crée ses utilitaires (bg-marine, text-cuivre,
+   font-titres, text-titre-1, rounded-arrondi-m, shadow-carte...).
+   Espacements : les jetons espace-N (N × 4 px) tombent sur l'échelle par
+   défaut de Tailwind, donc espace-4 = p-4, espace-6 = p-6, espace-10 = gap-10. */
+@theme {
+  /* Couleurs (thème clair uniquement : la charte n'en définit pas d'autre). */
+  --color-marine: #1b3a5c;
+  --color-marine-fonce: #122a44;
+  --color-marine-clair: #e8eef5;
+  --color-cuivre: #a8501a;
+  --color-cuivre-fonce: #8a4214;
+  --color-cuivre-clair: #f8ede5;
+  --color-fond: #f7f5f0;
+  --color-surface: #ffffff;
+  --color-bordure: #ddd8ce;
+  --color-encre: #1f2937;
+  --color-encre-douce: #5b6472;
+  --color-succes: #15803d;
+  --color-attente: #b45309;
+  --color-erreur: #b91c1c;
+  /* Hors tokens.json : cuivre éclairci pour les accents posés sur marine
+     (trait du logo clair, soulignement du lien actif). Le cuivre de la
+     charte n'y fait que 2 pour 1 ; celui-ci 4,2 pour 1 (minimum 3 pour 1
+     pour un élément graphique). Jamais pour du texte ni sur fond clair. */
+  --color-cuivre-sur-marine: #d9844a;
+
+  /* Familles : les variables --font-playfair et --font-manrope sont posées
+     par next/font sur <html> (layout.tsx). */
+  --font-titres: var(--font-playfair), Georgia, serif;
+  --font-sans: var(--font-manrope), system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Échelle typographique (taille, interligne, graisse). */
+  --text-affiche: 56px;
+  --text-affiche--line-height: 60px;
+  --text-affiche--font-weight: 700;
+  --text-titre-1: 40px;
+  --text-titre-1--line-height: 46px;
+  --text-titre-1--font-weight: 700;
+  --text-titre-2: 28px;
+  --text-titre-2--line-height: 34px;
+  --text-titre-2--font-weight: 700;
+  --text-titre-3: 20px;
+  --text-titre-3--line-height: 28px;
+  --text-titre-3--font-weight: 700;
+  --text-corps: 16px;
+  --text-corps--line-height: 26px;
+  --text-petit: 14px;
+  --text-petit--line-height: 20px;
+  --text-etiquette: 12px;
+  --text-etiquette--line-height: 16px;
+
+  /* Arrondis (préfixés : rounded-s existe déjà dans Tailwind, côté « start »). */
+  --radius-arrondi-s: 8px;
+  --radius-arrondi-m: 14px;
+  --radius-arrondi-l: 24px;
+  --radius-arrondi-pilule: 999px;
+
+  /* Ombre unique, teintée de marine. */
+  --shadow-carte: 0 1px 2px rgba(18, 42, 68, 0.06), 0 8px 24px rgba(18, 42, 68, 0.06);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+/* Sur mobile, affiche passe à 36 px et titre-1 à 30 px (charte). */
+@media (width < 48rem) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --text-affiche: 36px;
+    --text-affiche--line-height: 40px;
+    --text-titre-1: 30px;
+    --text-titre-1--line-height: 36px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    @apply bg-fond font-sans text-corps text-encre;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-titres;
+  }
+
+  /* Focus visible sur tout élément interactif : anneau cuivre de 3 px. */
+  :focus-visible {
+    outline: 3px solid var(--color-cuivre);
+    outline-offset: 2px;
+  }
+
+  /* Sur-titres : capitales espacées, 12 px. */
+  .sur-titre {
+    @apply text-etiquette font-bold tracking-[0.14em] uppercase;
+  }
 }

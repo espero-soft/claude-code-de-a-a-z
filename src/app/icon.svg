@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Favicon Réunéa : monogramme R clair sur carré marine (mêmes tracés que src/components/Logo.tsx). -->
+  <rect width="100" height="100" rx="22" fill="#1B3A5C"/>
+  <g transform="translate(7 5) scale(0.86)">
+    <path fill="#FFFFFF" d="M14 12H54C72 12 82 21 82 35C82 47 74 55 61 57C68 67 76 80 84 84C86 85 89 86 92 86V88H74C64 82 56 70 47 58H39V82C39 85 41 86 45 86V88H14V86C18 86 22 85 22 82V18C22 15 18 14 14 14ZM39 16V54H51C61 54 65 46 65 35C65 23 59 16 50 16Z"/>
+    <path fill="#D9844A" d="M6 90C16 70 40 60 62 54C72 51 80 47 84 40C81 50 71 55 59 59C39 65 20 72 6 90Z"/>
+  </g>
+</svg>

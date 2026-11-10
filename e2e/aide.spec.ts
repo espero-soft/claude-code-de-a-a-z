@@ -36,13 +36,13 @@ test("affiche les règles de réservation depuis la navigation", async ({ page }
   await expect(page.getByText(/du lundi au vendredi, de 8 h à 20 h/)).toBeVisible();
 });
 
-test("garde « Salles » actif sur une fiche de salle", async ({ page }) => {
+test("garde « Nos salles » actif sur une fiche de salle", async ({ page }) => {
   await page.goto("/salles");
   await page.getByRole("link", { name: "Horizon", exact: true }).click();
   await expect(page).toHaveURL(/\/salles\/[^/]+$/);
 
   const navigation = page.getByRole("navigation", { name: "Navigation principale" });
-  await expect(navigation.getByRole("link", { name: "Salles" })).toHaveAttribute(
+  await expect(navigation.getByRole("link", { name: "Nos salles" })).toHaveAttribute(
     "aria-current",
     "page",
   );

@@ -1,38 +1,47 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope, Playfair_Display } from "next/font/google";
 import { Suspense } from "react";
-import { BarreNavigation, Navigation } from "./Navigation";
+import { BarreEnTete, EnTete } from "@/components/EnTete";
+import { PiedDePage } from "@/components/PiedDePage";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Polices de la charte, auto-hébergées par next/font (aucune requête vers
+// Google depuis le navigateur). Les variables sont reprises par @theme
+// (globals.css) dans font-titres et font-sans.
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
   subsets: ["latin"],
+  weight: ["600", "700"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Réservation : projet fil rouge",
-  description: "Projet fil rouge de la formation Claude Code de A à Z",
+  title: "Réunéa : salles de réunion à l'heure",
+  description:
+    "Réservez une salle de réunion à l'heure et payez en ligne. Centre de démonstration : projet de formation.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${playfair.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {/* Avec Cache Components, usePathname suspend sur les routes à
             paramètre inconnu au build (/salles/[id]) : la barre sans lien
             actif sert de fallback pendant le prérendu. */}
-        <Suspense fallback={<BarreNavigation cheminActif={null} />}>
-          <Navigation />
+        <Suspense fallback={<BarreEnTete cheminActif={null} />}>
+          <EnTete />
         </Suspense>
         {children}
+        <PiedDePage />
       </body>
     </html>
   );

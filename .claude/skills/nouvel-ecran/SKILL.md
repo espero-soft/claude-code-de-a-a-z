@@ -57,13 +57,8 @@ Un écran n'est terminé que lorsque les **trois livrables** existent : la page,
 
 ## 2. La navigation
 
-- La barre de navigation commune est le composant `src/app/Navigation.tsx`, rendu une seule fois dans `src/app/layout.tsx`, au-dessus de `{children}`, dans un `<header>` contenant `<nav aria-label="Navigation principale">`.
-- **S'il n'existe pas encore**, le créer à la première page ajoutée :
-  - liste `<ul>` de `<Link>` (`next/link`) ; entrées de départ « Accueil » (`/`) et « Salles » (`/salles`), puis le nouvel écran ;
-  - les liens sont décrits dans un tableau `const LIENS = [{ href, libelle }]`, pour qu'ajouter un écran ne touche qu'une ligne ;
-  - lien courant marqué `aria-current="page"` (via `usePathname`, donc `"use client"` sur ce seul composant) ; pour `/salles`, actif aussi sur les sous-routes ;
-  - style sobre cohérent : fond blanc, bordure basse `border-slate-200`, lien actif `text-orange-600`.
-- **S'il existe**, ajouter une seule entrée dans `LIENS`, à une place logique dans le parcours.
+- Les liens sont décrits dans le tableau `LIENS` de `src/components/liens-navigation.ts`, partagé par l'en-tête marine (`src/components/EnTete.tsx`, `<nav aria-label="Navigation principale">`, menu déroulant sur mobile) et le pied de page (`src/components/PiedDePage.tsx`, `<nav aria-label="Navigation du pied de page">`), tous deux rendus une fois dans `src/app/layout.tsx`.
+- Ajouter une seule entrée dans `LIENS`, à une place logique dans le parcours : elle apparaît dans l'en-tête et le pied de page. Le lien courant est marqué `aria-current="page"` par `estActif` (actif aussi sur les sous-routes, sauf l'accueil).
 - Une page de détail (`[id]`) ou une étape de parcours (`/reserver`) **ne va pas** dans la navigation : on y arrive par un lien de la page parente. Dans ce cas, ajouter ce lien dans la page parente à la place, et le dire.
 - Les liens de retour « ← … » existants dans les pages restent en place.
 
@@ -82,7 +77,7 @@ Un écran n'est terminé que lorsque les **trois livrables** existent : la page,
 ## Compte rendu
 
 En quelques lignes :
-- fichiers créés ou modifiés (page, composants, `Navigation.tsx`/`layout.tsx`, `proxy.ts` le cas échéant, spec) ;
+- fichiers créés ou modifiés (page, composants, `liens-navigation.ts`, `proxy.ts` le cas échéant, spec) ;
 - page statique ou dynamique, et pourquoi ;
 - résultat de `npm run lint`, `npm test` et du test Playwright (ou la raison s'il n'a pas pu tourner) ;
 - toute section de `CLAUDE.md` à mettre à jour (Architecture, route ajoutée au proxy) : la signaler sans la modifier sans accord.
