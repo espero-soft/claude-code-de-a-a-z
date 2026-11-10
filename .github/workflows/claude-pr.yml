@@ -54,6 +54,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
+          show_full_output: true
           # Jeton éphémère du workflow, limité aux permissions du job ci-dessus.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
