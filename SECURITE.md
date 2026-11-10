@@ -1,6 +1,6 @@
 # Sécurité : inventaire et choix de l'authentification (module 12)
 
-Ce document prépare le module 12. Il ne modifie pas le code : il dresse l'inventaire de ce qu'il faut protéger, compare deux voies pour l'authentification et en recommande une.
+Ce document accompagne le module 12. Il dresse l'inventaire de ce qu'il faut protéger, compare deux voies pour l'authentification, en retient une (Better Auth, section 6) et consigne la décision du formateur sur le mode de connexion : **sans mot de passe, par code à 6 chiffres envoyé par e-mail** (section 7).
 
 ## 1. État des lieux (fin du module 11)
 
@@ -21,10 +21,10 @@ Ce qui est déjà solide et doit le rester : le prix vient toujours de la base, 
 
 | Rôle | Qui | Ce qu'il doit pouvoir faire |
 |---|---|---|
-| **Visiteur** | Personne non connectée | Consulter l'accueil, les salles, leurs fiches et l'aide. Créer un compte, se connecter, demander un nouveau mot de passe. |
-| **Client** | Compte vérifié (e-mail confirmé) | Tout ce que fait le visiteur, plus : réserver, consulter et payer **ses propres** réservations, gérer son compte (mot de passe, double authentification). |
-| **Employé** | Conseiller du centre | Lire et valider les tickets du support. Consulter les réservations de tous les clients pour répondre au support. Double authentification **obligatoire**. |
-| **Administrateur** | Responsable du centre | Tout ce que fait l'employé, plus : gérer les comptes et leurs rôles, et à terme les salles (activation, prix). Double authentification **obligatoire**. |
+| **Visiteur** | Personne non connectée | Consulter l'accueil, les salles, leurs fiches et l'aide. Se connecter par code e-mail, ce qui crée le compte au premier code. |
+| **Client** | Compte créé par un code e-mail validé (l'e-mail est donc vérifié) | Tout ce que fait le visiteur, plus : réserver, consulter et payer **ses propres** réservations, gérer son compte (nom, sessions ouvertes). |
+| **Employé** | Conseiller du centre | Lire et valider les tickets du support. Consulter les réservations de tous les clients pour répondre au support. Code d'application d'authentification (TOTP) **obligatoire**, en plus du code e-mail. |
+| **Administrateur** | Responsable du centre | Tout ce que fait l'employé, plus : gérer les comptes et leurs rôles, et à terme les salles (activation, prix). Code TOTP **obligatoire**, en plus du code e-mail. |
 
 Un compte a un seul rôle, et chaque rôle inclut le précédent. Le rôle est stocké en base et lu côté serveur à chaque requête : il n'est jamais déduit d'une donnée envoyée par le navigateur.
 
@@ -40,7 +40,8 @@ Un compte a un seul rôle, et chaque rôle inclut le précédent. Le rôle est s
 | `/admin/tickets` | ❌ | ❌ | ✅ | ✅ | Remplace le garde `adminDisponible()`. |
 | *À créer :* `/compte`, `/compte/reservations` | ❌ | ✅ | ✅ | ✅ | Le client retrouve ses réservations sans garder de lien. |
 | *À créer :* `/admin/utilisateurs` | ❌ | ❌ | ❌ | ✅ | Attribution des rôles. |
-| *À créer :* `/connexion`, `/inscription`, `/mot-de-passe-oublie`, `/verification-email`, `/double-authentification` | ✅ | ↪︎ | ↪︎ | ↪︎ | Une personne déjà connectée est redirigée. Débit limité. |
+| *À créer :* `/connexion` (un seul écran : e-mail, puis code ; sert aussi d'inscription) | ✅ | ↪︎ | ↪︎ | ↪︎ | Une personne déjà connectée est redirigée. Débit limité. |
+| *À créer plus tard :* `/double-authentification` (enrôlement et saisie du code TOTP) | ❌ | ❌ | ✅ | ✅ | Employés et admins seulement. |
 
 ### 3.2 Server Actions et points d'entrée
 
@@ -52,7 +53,7 @@ Une Server Action est un point d'entrée HTTP **public** : on peut l'appeler en 
 | `payer(reservationId)` | Client titulaire | La réservation appartient à l'utilisateur connecté (sinon même réponse que pour une réservation inexistante). |
 | `actualiserReservation` (lancée à l'affichage de `/reservations/[id]`) | Titulaire, employé, admin | Le contrôle d'accès se fait **avant** l'appel, puisque cette fonction écrit en base (confirmation, annulation, remboursement). |
 | `validerBrouillon(ticketId)` | Employé, admin | Rôle vérifié dans l'action. Le nom du conseiller qui valide est enregistré (traçabilité). |
-| *À créer :* route `/api/auth/...` de la bibliothèque | Tous | Gérée par la bibliothèque : débit limité, protection CSRF, cookies sécurisés. |
+| Route `/api/auth/[...all]` (**créée** : `src/app/api/auth/[...all]/route.ts`) | Tous | Gérée par la bibliothèque : débit limité, origine vérifiée (CSRF), cookies `HttpOnly`. |
 | Scripts `scripts/*.ts` et serveur MCP `regles-metier` | Développeur, en local | Hors application web : ils ne sont pas exposés. On n'y change rien, mais on n'utilise jamais de vraies données. |
 
 ### 3.3 Données
@@ -62,8 +63,9 @@ Une Server Action est un point d'entrée HTTP **public** : on peut l'appeler en 
 | `Reservation.nomClient`, `emailClient` | Personnelle (RGPD) | Le titulaire, les employés, les admins |
 | `Reservation.stripeSessionId`, montant, statut | Liée au paiement | Les mêmes. L'identifiant Stripe n'est jamais affiché. |
 | `Ticket.message`, `email`, `resume`, `brouillon` | Personnelle, parfois sensible (le client écrit ce qu'il veut) | Les employés et les admins seulement |
-| *À créer :* comptes (e-mail, rôle) | Personnelle | La personne elle-même, les admins |
-| *À créer :* empreintes de mot de passe, sessions, secrets TOTP, codes de secours, jetons de vérification et de réinitialisation | **Secrète** | Personne, pas même un admin : jamais affichées ni journalisées |
+| Comptes (tables `user` et `account`) : e-mail, nom, à terme rôle | Personnelle | La personne elle-même, les admins |
+| Sessions (`session`), codes de connexion (`verification`, **empreintes** seulement), à terme secrets TOTP et codes de secours | **Secrète** | Personne, pas même un admin : jamais affichés ni journalisés |
+| Code reçu par e-mail | **Secrète** pendant ses 5 minutes de validité | Le destinataire seulement. L'application ne l'écrit jamais dans ses journaux. |
 | `.env` (Stripe, Anthropic, secret d'authentification) | **Secrète** | Le serveur seulement |
 
 ## 4. Règles à respecter dans le projet
@@ -73,9 +75,9 @@ Elles viennent du guide de Next 16 (`node_modules/next/dist/docs/01-app/02-guide
 1. **Vérifier au plus près des données.** Une couche d'accès unique (`src/lib/acces.ts`, par exemple) expose `exigerSession()`, `exigerRole("EMPLOYE")` et `peutVoirReservation(utilisateur, reservation)`. Les deux premières sont mémorisées avec `react.cache()`. Les pages, les Server Actions et les fonctions de `src/lib/` passent par elle. Les règles d'accès sont des **fonctions pures testées avec Vitest**, comme R1 à R6.
 2. **Le proxy (`src/proxy.ts`) ne fait qu'un contrôle optimiste.** Il peut rediriger un visiteur sans cookie de session vers `/connexion`, mais ce n'est pas une barrière : la doc de Next précise qu'il ne doit pas servir de solution d'autorisation. On garde sa vérification actuelle des salles et on ajoute les nouvelles routes à son `matcher`.
 3. **Cache Components.** La session se lit au moment de la requête, donc **dans un composant sous `<Suspense>`**, après `await connection()`, comme nos lectures de données actuelles. Aucune donnée personnelle ni aucun cookie dans un `"use cache"`, une clé de cache ou un `cacheTag`. La coquille statique de `/reservations/[id]` et de `/admin/tickets` ne doit rien contenir de personnel.
-4. **Pas d'énumération.** Une réservation d'un autre client répond comme une réservation inexistante (404). « Mot de passe oublié » répond toujours « si un compte existe, un e-mail a été envoyé ».
-5. **Double authentification obligatoire** pour les rôles employé et administrateur, et proposée aux clients.
-6. **Réservations existantes** (sans compte) : à la migration, on les rattache au compte dont l'e-mail **vérifié** est identique. Avant cette vérification, rien n'est rattaché.
+4. **Pas d'énumération.** Une réservation d'un autre client répond comme une réservation inexistante (404). L'envoi d'un code répond toujours pareil, que le compte existe ou non (il n'y a d'ailleurs pas d'inscription distincte), et l'e-mail part sans être attendu, pour que le temps de réponse ne trahisse rien.
+5. **Code TOTP obligatoire** pour les rôles employé et administrateur (section 7.3). Pas de second facteur pour les clients à ce stade : le code e-mail prouve déjà la possession de la boîte.
+6. **Réservations existantes** (sans compte) : on les rattache au compte dont l'e-mail est identique. Avec la connexion par code, tout compte a un e-mail vérifié dès sa création (`emailVerified = true`) ; le code de rattachement le revérifie quand même.
 
 ## 5. Deux voies pour l'authentification
 
@@ -100,7 +102,7 @@ Le guide de Next le montre à titre pédagogique : formulaire, Server Action, em
 
 ### Voie B : une bibliothèque reconnue
 
-Critères : auto-hébergée (les comptes restent dans **notre** base SQLite), adaptateur Prisma, compatible Next 16 (App Router, Server Actions), et prise en charge de la vérification d'e-mail, du mot de passe oublié et de la 2FA.
+Critères : auto-hébergée (les comptes restent dans **notre** base SQLite), adaptateur Prisma, compatible Next 16 (App Router, Server Actions), et prise en charge de la vérification d'e-mail, de la connexion par code e-mail et de la 2FA. (La comparaison ci-dessous a été faite avant la décision de la section 7 ; elle reste valable.)
 
 | Bibliothèque | Auto-hébergée, Prisma + SQLite | Vérif. e-mail, mot de passe oublié | 2FA | Rôles | Verdict |
 |---|---|---|---|---|---|
@@ -126,20 +128,74 @@ Ce que la bibliothèque **ne fait pas** à notre place, et qui reste notre trava
 - **l'envoi des e-mails** : il faut un transport SMTP. En développement, on affiche les liens dans la console ou on utilise un serveur SMTP local de test (Mailpit) ;
 - **les écrans** de connexion, d'inscription et de 2FA, avec la charte Réunéa et nos composants (`Champ`, `Bouton`, `Encadre`).
 
-Précautions à l'installation :
+## 7. Décision : connexion sans mot de passe, par code e-mail
 
-- figer la version exacte dans `package.json`, comme le reste du projet, et vérifier ses dépendances paires (Next 16, React 19, Prisma 7) ;
-- ajouter `BETTER_AUTH_SECRET` et `BETTER_AUTH_URL` à `.env.example` (sans valeur réelle), et le secret dans `.env` ;
-- vérifier que le schéma généré s'accorde avec notre générateur `prisma-client` (sortie dans `src/generated/prisma`) ;
-- relire la doc de Next de `node_modules/next/dist/docs/` à chaque étape (proxy, Cache Components), puisque cette version diffère de celles qu'on connaît.
+**Décision du formateur (module 12).** Il n'y a pas de mot de passe. Un seul écran « Connexion » sert à se connecter **et** à s'inscrire : on saisit son e-mail, on reçoit un code à 6 chiffres, on le saisit, et c'est fait. Le compte est créé au premier code validé. Pour l'employé et l'administrateur, on ajoutera plus tard un code d'application d'authentification (TOTP), **obligatoire**.
 
-## 7. Plan de mise en œuvre proposé
+### 7.1 Raisons
 
-1. Installer Better Auth, générer et migrer le schéma (`npx prisma migrate dev --name authentification`), créer la route `/api/auth/[...all]`.
+1. **Aucun mot de passe à protéger.** Pas d'empreintes à stocker, donc rien à voler ni à casser hors ligne si la base fuit. Les attaques les plus courantes disparaissent : réutilisation d'un mot de passe fuité ailleurs (*credential stuffing*), mots de passe faibles, hameçonnage d'un mot de passe durable.
+2. **Moins de parcours, donc moins de failles.** Plus d'inscription séparée, de vérification d'e-mail ni de « mot de passe oublié » : trois écrans et trois familles de jetons en moins. Le flux de réinitialisation est historiquement l'un des plus attaqués (jetons réutilisables, énumération des comptes).
+3. **L'e-mail est vérifié d'office.** Recevoir le code prouve qu'on lit la boîte : chaque compte a un e-mail vérifié dès sa création. On ne réserve plus au nom de quelqu'un d'autre, et le rattachement des anciennes réservations par e-mail (section 4, règle 6) devient sûr.
+4. **Pas d'énumération par construction.** « Envoyer un code » répond toujours de la même façon, que le compte existe ou non.
+5. **Adapté à l'usage.** Un client réserve une salle de temps en temps : il ne retiendrait pas un mot de passe et finirait de toute façon par « mot de passe oublié », c'est-à-dire par un e-mail. Autant en faire le chemin normal.
+6. **Le second facteur porte là où est le risque.** Un employé ou un admin lit les tickets et les données de tous les clients : pour eux, la boîte e-mail seule ne suffit pas, d'où le TOTP obligatoire. Un code TOTP vient de l'appareil, pas de la boîte e-mail : compromettre l'un ne suffit pas.
+
+### 7.2 Ce que l'on accepte, et comment on le compense
+
+| Risque | Compensation |
+|---|---|
+| La sécurité du compte client = celle de sa boîte e-mail | Acceptable pour un client (c'était déjà le cas avec « mot de passe oublié »). TOTP obligatoire pour les rôles sensibles. |
+| Code à 6 chiffres = 10⁶ possibilités, devinable en force brute | 3 essais par code, puis il est invalidé ; validité de 5 minutes ; à usage unique ; envoi limité à 3 par minute et par adresse IP (en production). |
+| Le code transite par e-mail | Valable 5 minutes et une seule fois. Stocké en base sous forme d'**empreinte** (`storeOTP: "hashed"`), jamais en clair. |
+| Un e-mail lent ou en indésirables bloque la connexion | Renvoi d'un code possible (débit limité). En développement, tout arrive dans Mailpit. |
+| Un tiers peut faire envoyer des codes à une adresse (nuisance) | Limitation de débit ; le message dit d'ignorer l'e-mail si l'on n'a rien demandé. |
+
+### 7.3 TOTP pour les employés et les admins : point d'attention
+
+L'extension `twoFactor` de Better Auth 1.7.14 **ne s'applique qu'aux connexions par mot de passe** (`/sign-in/email`, `/sign-in/username`, `/sign-in/phone-number`, vérifié dans `node_modules/better-auth/dist/plugins/two-factor/index.mjs`). Elle ne s'enclenche **pas** après `/sign-in/email-otp`. Le jour où l'on ajoute le TOTP, il faudra donc l'imposer nous-mêmes :
+
+- garder `twoFactor` pour l'enrôlement (secret, QR code, codes de secours) et la vérification du code ;
+- marquer la session comme « TOTP vérifié » seulement après cette vérification ;
+- faire refuser par `exigerRole("EMPLOYE")` (couche d'accès, section 4) toute session d'employé ou d'admin non marquée, avec une redirection vers `/double-authentification` ;
+- tester ce refus avec Vitest (fonction pure) et Playwright.
+
+Revérifier ce comportement à chaque mise à jour de Better Auth : une version future pourrait couvrir `email-otp`.
+
+## 8. Installation (faite)
+
+**Versions vérifiées sur npm le 10 novembre 2026**, figées sans `^` dans `package.json` :
+
+| Paquet | Version | Pourquoi celle-ci |
+|---|---|---|
+| `better-auth` | 1.7.14 (26 octobre 2026) | Dépendances paires : `next` ^14 \|\| ^15 \|\| ^16, `react` et `react-dom` ^18 \|\| ^19, `prisma` et `@prisma/client` ^5 \|\| ^6 \|\| ^7 : compatibles avec Next 16.4.5, React 19.3.0 et Prisma 7.10.1 (`npm ls` sans conflit). Les 1.7.19 et 1.7.20 ont été publiées le jour même : on garde une version avec deux semaines de recul. |
+| `auth` (dev) | 1.7.14 | La CLI de Better Auth. L'ancien paquet `@better-auth/cli` est **abandonné** sur npm. Même version que la bibliothèque. |
+| `nodemailer` | 10.3.1 | Envoi SMTP vers Mailpit. Les 10.4.1 et 10.5.0 dataient du jour même. |
+| `@types/nodemailer` (dev) | 8.0.2 | Types. |
+
+Ce qui est en place :
+
+- `src/lib/auth.ts` : instance Better Auth, adaptateur Prisma (`provider: "sqlite"`, notre client de `src/lib/prisma.ts`), extension `emailOTP` (6 chiffres, 5 minutes, 3 essais, code stocké en empreinte, inscription au premier code), `nextCookies()` en dernier. Pas d'`emailAndPassword`. Limitation de débit stockée **en base** (table `rateLimit`) plutôt qu'en mémoire, pour survivre aux redémarrages ; Better Auth ne l'active qu'en production.
+- `src/lib/courriel.ts` : envoi SMTP par `nodemailer`. En développement, Mailpit (`localhost:1025`, boîte sur http://localhost:8025) ; en production, `SMTP_HOST` est exigé.
+- Tables `user`, `session`, `account`, `verification` et `rateLimit` générées par `npx auth generate --config src/lib/auth.ts --output prisma/schema.prisma`, migration `authentification`.
+- Route `src/app/api/auth/[...all]/route.ts` (`toNextJsHandler`).
+- `.env.example` : `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `SMTP_*`, `COURRIEL_EXPEDITEUR`.
+
+Vérifié sur un serveur de production local : `/api/auth/ok` répond 200, `/api/auth/get-session` répond `null` sans cookie, une requête d'une autre origine est refusée (403 `INVALID_ORIGIN`), le code arrive dans Mailpit, la base ne contient que son empreinte, un mauvais code est refusé, le bon crée le compte (`emailVerified: true`) et pose un cookie de session `HttpOnly`, et le même code rejoué est refusé.
+
+Pièges rencontrés :
+
+- **Prisma 7 ne régénère plus le client après `migrate dev`.** Better Auth lit le modèle du client généré et signale « Prisma schema mismatch » tant qu'on n'a pas lancé `npx prisma generate`. Un `next dev` déjà lancé garde l'ancien client sur `globalThis` : le redémarrer.
+- **Valeurs par défaut de `emailOTP` à corriger** : le code est stocké **en clair** par défaut (`storeOTP: "plain"`).
+- La CLI réécrit tout `schema.prisma` et peut détacher les commentaires des modèles : relire le diff.
+
+## 9. Suite du plan
+
+1. ~~Installer Better Auth, générer et migrer le schéma, créer la route `/api/auth/[...all]`.~~ Fait (section 8).
 2. Écrire la couche d'accès `src/lib/acces.ts` (fonctions pures plus lecture de session) et ses tests Vitest.
-3. Écrans `/inscription`, `/connexion`, `/verification-email` et `/mot-de-passe-oublie`, avec l'envoi d'e-mails en développement.
-4. Ajouter `Reservation.utilisateurId`, protéger `reserver`, `payer` et `/reservations/[id]`, créer `/compte/reservations`.
-5. Remplacer `adminDisponible()` par `exigerRole("EMPLOYE")` sur `/admin/tickets` et `validerBrouillon` ; afficher le lien « Tickets » selon le rôle dans `liens-navigation.ts`.
-6. Double authentification : obligatoire pour employés et admins, proposée aux clients.
+3. Écran `/connexion` (e-mail, puis code), avec le client `better-auth/react` et l'extension cliente `emailOTPClient`.
+4. Ajouter `Reservation.utilisateurId`, protéger `reserver`, `payer` et `/reservations/[id]`, créer `/compte/reservations`. Le nom et l'e-mail de la réservation viennent du compte.
+5. Rôles (extension `admin` ou champ `role`) ; remplacer `adminDisponible()` par `exigerRole("EMPLOYE")` sur `/admin/tickets` et `validerBrouillon` ; afficher le lien « Tickets » selon le rôle dans `liens-navigation.ts`.
+6. TOTP obligatoire pour employés et admins (section 7.3).
 7. Tests Playwright (`e2e/`) : un visiteur est redirigé, un client ne voit pas la réservation d'un autre (404), un client n'ouvre pas `/admin/tickets`, et l'action `validerBrouillon` appelée sans rôle est refusée.
 8. Mettre à jour `CLAUDE.md` (architecture, nouvelles variables d'environnement) et la section « Sécurité ».
