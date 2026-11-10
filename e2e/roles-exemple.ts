@@ -8,3 +8,6 @@ export const COMPTES_ROLES = {
   employe: { email: `employe${DOMAINE_ROLES}`, role: "EMPLOYE", nom: "" },
   admin: { email: `admin${DOMAINE_ROLES}`, role: "ADMIN", nom: "" },
 } as const;
+
+// Cliente de l'espace client (e2e/espace-client-exemple.ts), adresse vérifiée.
+export const CLAIRE = { email: `claire${DOMAINE_ROLES}`, nom: "Claire Dubois" } as const;

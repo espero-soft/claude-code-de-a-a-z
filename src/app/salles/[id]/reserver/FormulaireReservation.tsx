@@ -39,10 +39,14 @@ const HEURES_FIN = creneaux(9 * 60, 20 * 60);
 export function FormulaireReservation({
   salleId,
   aujourdhui,
+  compte,
 }: {
   salleId: string;
   // Date du jour à Paris (AAAA-MM-JJ), pour griser les jours passés.
   aujourdhui: string;
+  // Compte connecté : la réservation est faite à son nom et à son e-mail.
+  // Nom vide (compte créé par le code) : demandé une seule fois.
+  compte: { nom: string; email: string };
 }) {
   const [etat, action, enCours] = useActionState(
     reserver.bind(null, salleId),
@@ -126,26 +130,42 @@ export function FormulaireReservation({
         )}
       </div>
 
-      <Champ
-        id="nomClient"
-        libelle="Votre nom"
-        type="text"
-        autoComplete="name"
-        required
-        defaultValue={valeurs.nomClient}
-        erreur={erreurs.nomClient}
-        icone={<IconePersonne />}
-      />
-      <Champ
-        id="emailClient"
-        libelle="Votre adresse e-mail"
-        type="email"
-        autoComplete="email"
-        required
-        defaultValue={valeurs.emailClient}
-        erreur={erreurs.emailClient}
-        icone={<IconeEnveloppe />}
-      />
+      {/* Nom et e-mail viennent du compte (la Server Action les relit) :
+          plus rien à ressaisir, sauf le nom d'un compte qui n'en a pas. */}
+      {compte.nom ? null : (
+        <Champ
+          id="nomClient"
+          libelle="Votre nom"
+          aide="Enregistré dans votre compte : il ne vous sera plus demandé."
+          type="text"
+          autoComplete="name"
+          required
+          defaultValue={valeurs.nomClient}
+          erreur={erreurs.nomClient}
+          icone={<IconePersonne />}
+        />
+      )}
+      <div className="rounded-arrondi-m bg-fond px-4 py-3">
+        <p className="text-petit text-encre-douce">Réservation au nom de</p>
+        <dl className="mt-2 space-y-1">
+          {compte.nom && (
+            <div className="flex items-center gap-2">
+              <dt className="text-encre-douce">
+                <IconePersonne />
+                <span className="sr-only">Nom</span>
+              </dt>
+              <dd className="font-semibold break-words">{compte.nom}</dd>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <dt className="text-encre-douce">
+              <IconeEnveloppe />
+              <span className="sr-only">E-mail</span>
+            </dt>
+            <dd className="font-semibold break-all">{compte.email}</dd>
+          </div>
+        </dl>
+      </div>
 
       <Bouton type="submit" variante="action" enCours={enCours} pleineLargeur>
         Envoyer la demande

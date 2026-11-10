@@ -5,6 +5,7 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { envoyerCourriel } from "@/lib/courriel";
 import { gardeConnexion, ROUTES_CODE_FERMEES } from "@/lib/garde-connexion";
 import { prisma } from "@/lib/prisma";
+import { rattacherReservationsSansCompte } from "@/lib/rattachement";
 import { ROLE_PAR_DEFAUT } from "@/lib/roles";
 
 // Authentification sans mot de passe (décision du module 12, voir SECURITE.md) :
@@ -31,6 +32,22 @@ export const auth = betterAuth({
         required: false,
         defaultValue: ROLE_PAR_DEFAUT,
         input: false,
+      },
+    },
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        // À chaque connexion : réservations faites sans compte rattachées par
+        // l'e-mail, si l'adresse est vérifiée (src/lib/rattachement.ts). Ne
+        // fait jamais échouer la connexion ; l'espace client réessaie.
+        async after(session) {
+          try {
+            await rattacherReservationsSansCompte(session.userId);
+          } catch (erreur) {
+            console.error("Rattachement des réservations impossible", erreur);
+          }
+        },
       },
     },
   },

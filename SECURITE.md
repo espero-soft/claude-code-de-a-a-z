@@ -194,7 +194,7 @@ Pièges rencontrés :
 1. ~~Installer Better Auth, générer et migrer le schéma, créer la route `/api/auth/[...all]`.~~ Fait (section 8).
 2. Écrire la couche d'accès `src/lib/acces.ts` (fonctions pures plus lecture de session) et ses tests Vitest.
 3. Écran `/connexion` (e-mail, puis code), avec le client `better-auth/react` et l'extension cliente `emailOTPClient`.
-4. ~~Ajouter `Reservation.utilisateurId`, protéger `reserver`, `payer` et `/reservations/[id]`.~~ Fait (section 11). Reste : créer `/compte/reservations` ; faire venir le nom et l'e-mail de la réservation du compte (le formulaire les demande encore).
+4. ~~Ajouter `Reservation.utilisateurId`, protéger `reserver`, `payer` et `/reservations/[id]`.~~ Fait (section 11). Espace client `/compte`, nom et e-mail de la réservation tirés du compte, et rattachement des réservations faites sans compte (adresse vérifiée seulement) : fait (section 12).
 5. ~~Rôles ; remplacer `adminDisponible()` sur `/admin/tickets` et `validerBrouillon` ; lien « Tickets » selon le rôle.~~ Fait (section 11).
 6. TOTP obligatoire pour employés et admins (section 7.3).
 7. ~~Tests : un visiteur est redirigé, un client ne voit pas la réservation d'un autre (404), un client n'ouvre pas `/admin/tickets`, et l'action `validerBrouillon` appelée sans rôle est refusée.~~ Fait (section 11).
@@ -256,4 +256,10 @@ Trois couches, chacune suffisante pour la sécurité des données :
 
 Prouvé par : `src/lib/roles.test.ts`, `src/lib/connexion.test.ts` (`adresseConnexion`), `src/app/**/actions.test.ts`, `e2e/fuite-reservation.spec.ts` (plus de `test.fail`), `e2e/roles.spec.ts` (dont : un client qui envoie `role: "ADMIN"` à `/update-user` reste client). Vérifié aussi qu'en retirant le contrôle de la page ou la garde de `validerBrouillon`, ces tests échouent.
 
-Reste à faire : TOTP obligatoire pour le personnel (section 7.3) ; traçabilité de qui valide un ticket ; nom et e-mail de la réservation tirés du compte.
+Reste à faire : TOTP obligatoire pour le personnel (section 7.3) ; traçabilité de qui valide un ticket.
+
+## 12. Espace client et rattachement des anciennes réservations (module 12)
+
+- **`/compte`** (« Mes réservations », visible des comptes connectés) : réservations du compte rangées en *en attente de paiement*, *à venir* et *passées et annulées* (`src/lib/espace-client.ts`, pur et testé). Seul le titulaire voit ses réservations : la requête filtre sur `utilisateurId` du compte de la session.
+- **Le formulaire de réservation ne demande plus l'e-mail** : la Server Action `reserver` prend le nom et l'e-mail **du compte** et ignore ceux qu'un formulaire forgé enverrait (testé). Un compte encore sans nom (créé par le code) le saisit une fois ; il est enregistré dans le compte.
+- **Rattachement** (`src/lib/rattachement.ts`) : une réservation faite sans compte (`utilisateurId` vide) est rattachée au compte de même adresse, sans tenir compte de la casse ni des espaces, **seulement si l'adresse du compte est vérifiée**. Sinon, il suffirait de créer un compte à l'adresse d'un autre pour lire ses réservations. Une réservation qui a déjà un titulaire n'est jamais reprise (revérifié à l'écriture). Lancé à chaque création de session (`databaseHooks.session.create.after`, après que Better Auth a marqué l'adresse vérifiée) et à l'ouverture de `/compte`. Prouvé par `src/lib/rattachement.test.ts` (retirer la condition « vérifiée » fait échouer deux tests) et `e2e/compte.spec.ts` (la réservation sans compte de Claire apparaît et s'ouvre ; celle d'une autre adresse reste introuvable).

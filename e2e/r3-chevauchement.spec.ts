@@ -31,8 +31,11 @@ async function demanderHorizon(page: Page, heureDebut: string, heureFin: string)
   // Listes déroulantes de 30 en 30 minutes : on choisit par la valeur (« 11:00 »).
   await page.getByLabel("Heure de début").selectOption(heureDebut);
   await page.getByLabel("Heure de fin").selectOption(heureFin);
+  // Nom et e-mail viennent du compte : plus de champ e-mail. Le compte de
+  // test n'a pas encore de nom (créé par le code) : il est demandé.
+  await expect(page.getByLabel("Votre adresse e-mail")).toHaveCount(0);
+  await expect(page.getByRole("main").getByText(EMAIL_TEST)).toBeVisible();
   await page.getByLabel("Votre nom").fill("Test Playwright");
-  await page.getByLabel("Votre adresse e-mail").fill(EMAIL_TEST);
   await page.getByRole("button", { name: "Envoyer la demande" }).click();
 }
 
@@ -46,6 +49,7 @@ test("R3 : 11 h à 12 h 30 est refusé, 12 h à 13 h est accepté", async ({ pag
   await expect(page).toHaveURL(/\/salles\/[^/]+\/reserver$/);
 
   // Commence quand l'autre finit : les créneaux se touchent sans se chevaucher.
+  // La demande refusée n'a rien enregistré : le nom est encore demandé.
   await demanderHorizon(page, "12:00", "13:00");
   await expect(page).toHaveURL(/\/reservations\/[^/]+$/);
   await expect(
@@ -56,4 +60,16 @@ test("R3 : 11 h à 12 h 30 est refusé, 12 h à 13 h est accepté", async ({ pag
   // doit être divisé par 100 à l'affichage, sinon la page montre 4 000,00 €.
   // Intl sépare le nombre et « € » par une espace insécable : d'où le \s.
   await expect(page.getByText(/^40,00\s€$/)).toBeVisible();
+});
+
+test("le nom saisi une fois est gardé dans le compte et n'est plus demandé", async ({ page }) => {
+  // Le compte de test a réservé dans le test précédent, avec son nom.
+  await seConnecter(page, EMAIL_TEST);
+  await page.goto("/salles");
+  await page.getByRole("link", { name: "Horizon", exact: true }).click();
+  await page.getByRole("link", { name: "Réserver cette salle" }).click();
+  await expect(page.getByLabel("Date")).toBeVisible();
+  await expect(page.getByLabel("Votre nom")).toHaveCount(0);
+  await expect(page.getByRole("main").getByText("Test Playwright")).toBeVisible();
+  await expect(page.getByRole("main").getByText(EMAIL_TEST)).toBeVisible();
 });

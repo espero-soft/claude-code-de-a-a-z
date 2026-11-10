@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Bouton } from "@/components/Bouton";
+import { Bouton, type VarianteBouton } from "@/components/Bouton";
 import { Encadre } from "@/components/Encadre";
 import { IconeCarteBancaire } from "@/components/icones";
 import { payer, type EtatPaiement } from "./actions";
@@ -13,9 +13,20 @@ const etatInitial: EtatPaiement = {};
 export function BoutonPayer({
   reservationId,
   montant,
+  variante = "action",
+  libelle = "Payer",
+  pleineLargeur = true,
+  className = "mt-6",
 }: {
   reservationId: string;
   montant: string;
+  // Cuivre par défaut (charte : l'action qui fait avancer). Marine dans
+  // l'espace client, où le cuivre est déjà pris par « Réserver une salle »
+  // (un seul bouton cuivre par écran).
+  variante?: VarianteBouton;
+  libelle?: string;
+  pleineLargeur?: boolean;
+  className?: string;
 }) {
   const [etat, action, enCours] = useActionState(
     payer.bind(null, reservationId),
@@ -23,7 +34,7 @@ export function BoutonPayer({
   );
 
   return (
-    <form action={action} className="mt-6 space-y-4">
+    <form action={action} className={`space-y-4 ${className}`}>
       {etat.erreur && (
         <Encadre ton="erreur" role="alert">
           {etat.erreur}
@@ -31,13 +42,13 @@ export function BoutonPayer({
       )}
       <Bouton
         type="submit"
-        variante="action"
-        pleineLargeur
+        variante={variante}
+        pleineLargeur={pleineLargeur}
         enCours={enCours}
         libelleEnCours="Redirection vers le paiement…"
       >
         <IconeCarteBancaire />
-        Payer {montant}
+        {libelle} {montant}
       </Bouton>
     </form>
   );

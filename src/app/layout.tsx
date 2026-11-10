@@ -50,7 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             actif sert de fallback pendant le prérendu. */}
         <Suspense fallback={<BarreEnTete cheminActif={null} />}>
           <EnTete
-            liensPersonnel={<ZoneCompte disposition="personnel" />}
+            liensCompte={<ZoneCompte disposition="liens" />}
             compteOrdinateur={<ZoneCompte disposition="ordinateur" />}
             compteMobile={<ZoneCompte disposition="mobile" />}
             compteMenu={<ZoneCompte disposition="menu" />}

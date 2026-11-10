@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { IconeFermer, IconeMenu } from "./icones";
-import { estActif, LIEN_ADMINISTRATION, LIENS } from "./liens-navigation";
+import { estActif, LIENS } from "./liens-navigation";
 import { Logo } from "./Logo";
 
 // En-tête marine : logo à gauche, liens à droite, lien actif souligné de
@@ -14,7 +14,7 @@ import { Logo } from "./Logo";
 // Les emplacements `compte*` reçoivent la zone du compte (ZoneCompte, lue
 // côté serveur) : absents du fallback, ils arrivent en flux.
 type EmplacementsCompte = {
-  liensPersonnel?: ReactNode;
+  liensCompte?: ReactNode;
   compteOrdinateur?: ReactNode;
   compteMobile?: ReactNode;
   compteMenu?: ReactNode;
@@ -22,7 +22,7 @@ type EmplacementsCompte = {
 
 export function BarreEnTete({
   cheminActif,
-  liensPersonnel,
+  liensCompte,
   compteOrdinateur,
   compteMobile,
   compteMenu,
@@ -66,7 +66,7 @@ export function BarreEnTete({
             <span className="sr-only">Menu</span>
           </button>
 
-          {/* Un clic sur un lien (y compris le lien du personnel, venu du
+          {/* Un clic sur un lien (y compris les liens du compte, venus du
               serveur) referme le menu mobile. */}
           <ul
             id={idMenu}
@@ -85,7 +85,7 @@ export function BarreEnTete({
                 actif={estActif(href, cheminActif)}
               />
             ))}
-            {liensPersonnel}
+            {liensCompte}
             {compteMenu}
           </ul>
           {compteOrdinateur}
@@ -114,9 +114,9 @@ function LienPrincipal({ href, libelle, actif }: { href: string; libelle: string
   );
 }
 
-// Lien « Tickets », placé par ZoneCompte pour l'employé et l'administrateur.
-export function LienPersonnel() {
-  const { href, libelle } = LIEN_ADMINISTRATION;
+// Lien réservé aux comptes (« Mes réservations », « Tickets »), placé par
+// ZoneCompte selon le compte lu côté serveur.
+export function LienCompte({ href, libelle }: { href: string; libelle: string }) {
   return <LienPrincipal href={href} libelle={libelle} actif={estActif(href, usePathname())} />;
 }
 

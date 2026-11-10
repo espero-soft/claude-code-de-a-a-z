@@ -15,7 +15,7 @@ import { estPersonnel, lireRole } from "@/lib/roles";
 //    les photos de public/salles en ont un (/salles/atelier.jpg) ; sans cette
 //    exclusion, le proxy les prendrait pour des salles inconnues (404).
 //
-// 2. Pages réservées aux comptes (réserver, une réservation, /admin) : un
+// 2. Pages réservées aux comptes (réserver, une réservation, /compte, /admin) : un
 //    visiteur SANS cookie de session est renvoyé vers /connexion, avec un vrai
 //    code 307. Contrôle optimiste seulement (le cookie n'est ni vérifié ni
 //    relu en base) : la page et chaque Server Action revérifient la session et
@@ -29,6 +29,7 @@ export const config = {
     "/salles/:id([^/.]+)",
     "/salles/:id([^/.]+)/reserver",
     "/reservations/:id([^/.]+)",
+    "/compte",
     "/admin",
     // Sauf /admin/introuvable, la page du 404 elle-même.
     "/admin/:chemin((?!introuvable$).*)",
@@ -39,6 +40,7 @@ function exigeCompte(chemin: string): boolean {
   return (
     chemin.endsWith("/reserver") ||
     chemin.startsWith("/reservations/") ||
+    chemin === "/compte" ||
     chemin === "/admin" ||
     chemin.startsWith("/admin/")
   );

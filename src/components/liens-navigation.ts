@@ -6,9 +6,11 @@ export const LIENS = [
   { href: "/aide", libelle: "Aide" },
 ];
 
-// Lien réservé au personnel (employé, administrateur), ajouté dans l'en-tête
-// par ZoneCompte selon le rôle lu côté serveur. Simple confort d'affichage :
-// la page et ses actions revérifient le rôle.
+// Liens réservés aux comptes connectés, ajoutés dans l'en-tête par
+// ZoneCompte selon le compte lu côté serveur. Simple confort d'affichage :
+// chaque page et ses actions revérifient la session et le rôle.
+export const LIEN_ESPACE_CLIENT = { href: "/compte", libelle: "Mes réservations" };
+// Employé et administrateur seulement.
 export const LIEN_ADMINISTRATION = { href: "/admin/tickets", libelle: "Tickets" };
 
 // Actif sur la page elle-même, et sur ses sous-routes (sauf l'accueil) :

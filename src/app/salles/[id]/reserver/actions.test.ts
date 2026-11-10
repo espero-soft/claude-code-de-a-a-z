@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { getSession, prismaSimule } = vi.hoisted(() => ({
   getSession: vi.fn(),
   prismaSimule: {
-    user: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn(), update: vi.fn() },
     salle: { findFirst: vi.fn() },
     reservation: { create: vi.fn() },
   },
@@ -60,20 +60,59 @@ describe("reserver", () => {
     expect(prismaSimule.reservation.create).not.toHaveBeenCalled();
   });
 
-  it("rattache la réservation au compte connecté", async () => {
+  function connecter(nom: string) {
     getSession.mockResolvedValue({ user: { id: "claire" } });
     prismaSimule.user.findUnique.mockResolvedValue({
       id: "claire",
       email: "claire@exemple.fr",
-      name: "",
+      name: nom,
       role: "CLIENT",
     });
+  }
 
-    await expect(reserver("s1", etatInitial, saisie())).rejects.toThrow("redirection:/reservations/r1");
+  it("rattache la réservation au compte, à son nom et à son e-mail, pas à ceux du formulaire", async () => {
+    connecter("Claire Dubois");
+    // Formulaire forgé : il tente d'imposer un autre nom et une autre adresse.
+    const forge = saisie();
+    forge.set("nomClient", "Quelqu'un d'autre");
+    forge.set("emailClient", "victime@exemple.fr");
+
+    await expect(reserver("s1", etatInitial, forge)).rejects.toThrow("redirection:/reservations/r1");
     expect(prismaSimule.reservation.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ utilisateurId: "claire", statut: "EN_ATTENTE" }),
+        data: expect.objectContaining({
+          utilisateurId: "claire",
+          nomClient: "Claire Dubois",
+          emailClient: "claire@exemple.fr",
+          statut: "EN_ATTENTE",
+        }),
       }),
     );
+    // Le compte avait déjà un nom : il n'est pas modifié.
+    expect(prismaSimule.user.update).not.toHaveBeenCalled();
+  });
+
+  it("compte sans nom : prend le nom saisi et l'enregistre dans le compte", async () => {
+    connecter("");
+    await expect(reserver("s1", etatInitial, saisie())).rejects.toThrow("redirection:");
+    expect(prismaSimule.reservation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ nomClient: "Claire Martin", emailClient: "claire@exemple.fr" }),
+      }),
+    );
+    expect(prismaSimule.user.update).toHaveBeenCalledWith({
+      where: { id: "claire" },
+      data: { name: "Claire Martin" },
+    });
+  });
+
+  it("compte sans nom et nom laissé vide : erreur sur le nom, rien n'est créé", async () => {
+    connecter("");
+    const sansNom = saisie();
+    sansNom.set("nomClient", "  ");
+    const etat = await reserver("s1", etatInitial, sansNom);
+    expect(etat.erreurs.nomClient).toBe("Indiquez votre nom.");
+    expect(prismaSimule.reservation.create).not.toHaveBeenCalled();
+    expect(prismaSimule.user.update).not.toHaveBeenCalled();
   });
 });

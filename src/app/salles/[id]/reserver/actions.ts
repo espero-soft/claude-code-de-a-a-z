@@ -27,17 +27,22 @@ export async function reserver(
     const valeur = formData.get(nom);
     return typeof valeur === "string" ? valeur : "";
   };
+  // Une Server Action s'appelle en POST sans passer par la page : la session
+  // est vérifiée ici. La réservation est rattachée au compte (titulaire).
+  const utilisateur = await utilisateurAvec("reserver");
+
+  // Le nom et l'e-mail viennent du compte, jamais du formulaire : l'e-mail
+  // est celui vérifié par le code de connexion. Seul un compte encore sans
+  // nom (créé par le code) envoie « nomClient », enregistré ensuite.
+  const nomCompte = utilisateur?.nom.trim() ?? "";
   const valeurs: SaisieReservation = {
     date: lire("date"),
     heureDebut: lire("heureDebut"),
     heureFin: lire("heureFin"),
-    nomClient: lire("nomClient"),
-    emailClient: lire("emailClient"),
+    nomClient: nomCompte || lire("nomClient"),
+    emailClient: utilisateur?.email ?? "",
   };
 
-  // Une Server Action s'appelle en POST sans passer par la page : la session
-  // est vérifiée ici. La réservation est rattachée au compte (titulaire).
-  const utilisateur = await utilisateurAvec("reserver");
   if (!utilisateur) {
     return { erreurs: { general: "Connectez-vous pour réserver une salle." }, valeurs };
   }
@@ -87,6 +92,14 @@ export async function reserver(
     },
     select: { id: true },
   });
+
+  // Premier nom saisi : gardé dans le compte, il ne sera plus demandé.
+  if (!nomCompte) {
+    await prisma.user.update({
+      where: { id: utilisateur.id },
+      data: { name: resultat.nomClient },
+    });
+  }
 
   redirect(`/reservations/${reservation.id}`);
 }

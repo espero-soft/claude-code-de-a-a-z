@@ -28,6 +28,8 @@ async function main() {
     where: {
       OR: [
         { emailClient: { endsWith: DOMAINE_ROLES } },
+        // Adresse saisie en majuscules (e2e/espace-client-exemple.ts).
+        { emailClient: { endsWith: DOMAINE_ROLES.toUpperCase() } },
         { utilisateur: { email: { endsWith: DOMAINE_ROLES } } },
       ],
     },

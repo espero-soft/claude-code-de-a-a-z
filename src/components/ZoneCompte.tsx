@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { lireCompte, type CompteConnecte } from "@/lib/compte";
-import { LienPersonnel } from "./EnTete";
+import { LienCompte } from "./EnTete";
+import { LIEN_ADMINISTRATION, LIEN_ESPACE_CLIENT } from "./liens-navigation";
 import { BoutonDeconnexion, LienSeConnecter } from "./LiensCompte";
 
 // Zone du compte dans l'en-tête marine. Visiteur : « Se connecter ».
@@ -11,9 +12,10 @@ import { BoutonDeconnexion, LienSeConnecter } from "./LiensCompte";
 // - « ordinateur » (dans la barre, après les liens) : tout ;
 // - « mobile » (dans la barre, avant le bouton Menu) : lien ou initiale ;
 // - « menu » (dans le menu déroulant mobile) : e-mail et « Se déconnecter » ;
-// - « personnel » (parmi les liens) : « Tickets », pour l'employé et
-//   l'administrateur seulement (la page revérifie le rôle).
-type Disposition = "ordinateur" | "mobile" | "menu" | "personnel";
+// - « liens » (parmi les liens de navigation) : « Mes réservations » pour
+//   tout compte, « Tickets » pour l'employé et l'administrateur (les pages
+//   revérifient la session et le rôle).
+type Disposition = "ordinateur" | "mobile" | "menu" | "liens";
 
 export function ZoneCompte({ disposition }: { disposition: Disposition }) {
   return (
@@ -26,8 +28,14 @@ export function ZoneCompte({ disposition }: { disposition: Disposition }) {
 async function Contenu({ disposition }: { disposition: Disposition }) {
   const compte = await lireCompte();
 
-  if (disposition === "personnel") {
-    return compte?.personnel ? <LienPersonnel /> : null;
+  if (disposition === "liens") {
+    if (!compte) return null;
+    return (
+      <>
+        <LienCompte {...LIEN_ESPACE_CLIENT} />
+        {compte.personnel && <LienCompte {...LIEN_ADMINISTRATION} />}
+      </>
+    );
   }
 
   if (disposition === "menu") {

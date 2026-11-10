@@ -62,7 +62,8 @@ async function Reservation({ id }: { id: string }) {
   }
   // Réserver demande un compte : la réservation lui sera rattachée. Le proxy
   // ne regarde que la présence d'un cookie ; l'action reserver revérifie.
-  if (!(await utilisateurAvec("reserver"))) {
+  const utilisateur = await utilisateurAvec("reserver");
+  if (!utilisateur) {
     redirect(adresseConnexion(`/salles/${salle.id}/reserver`));
   }
 
@@ -131,6 +132,7 @@ async function Reservation({ id }: { id: string }) {
           <FormulaireReservation
             salleId={salle.id}
             aujourdhui={formatJour.format(new Date())}
+            compte={{ nom: utilisateur.nom.trim(), email: utilisateur.email }}
           />
         </Carte>
       </div>
