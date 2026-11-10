@@ -53,6 +53,7 @@ jobs:
         uses: anthropics/claude-code-action@3b7e1a45ca6f231c62605aabcf79e6a41b08c7da # v1.0.263
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
           # Jeton éphémère du workflow, limité aux permissions du job ci-dessus.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
