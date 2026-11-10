@@ -149,6 +149,24 @@ export function IconePersonnes(props: PropsIcone) {
   );
 }
 
+export function IconePersonne(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </Icone>
+  );
+}
+
+export function IconeEnveloppe(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </Icone>
+  );
+}
+
 // Étiquette de prix (devant un tarif, à la place de l'icône d'écran des maquettes).
 export function IconeEtiquette(props: PropsIcone) {
   return (

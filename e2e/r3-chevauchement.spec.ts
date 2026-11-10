@@ -27,8 +27,9 @@ async function demanderHorizon(page: Page, heureDebut: string, heureFin: string)
   await expect(page.getByLabel("Date")).toBeVisible();
 
   await page.getByLabel("Date").fill(DATE_DEMO);
-  await page.getByLabel("Heure de début").fill(heureDebut);
-  await page.getByLabel("Heure de fin").fill(heureFin);
+  // Listes déroulantes de 30 en 30 minutes : on choisit par la valeur (« 11:00 »).
+  await page.getByLabel("Heure de début").selectOption(heureDebut);
+  await page.getByLabel("Heure de fin").selectOption(heureFin);
   await page.getByLabel("Votre nom").fill("Test Playwright");
   await page.getByLabel("Votre adresse e-mail").fill(EMAIL_TEST);
   await page.getByRole("button", { name: "Envoyer la demande" }).click();
