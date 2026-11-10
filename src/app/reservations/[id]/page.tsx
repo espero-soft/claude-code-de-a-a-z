@@ -20,8 +20,12 @@ import {
   IconeSablier,
 } from "@/components/icones";
 import { PhotoSalle } from "@/components/PhotoSalle";
-import { lireTitulaireReservation, lireUtilisateur } from "@/lib/acces";
-import { adresseConnexion } from "@/lib/connexion";
+import {
+  doitValiderDeuxiemeFacteur,
+  lireTitulaireReservation,
+  lireUtilisateur,
+} from "@/lib/acces";
+import { adresseConnexion, adresseDeuxiemeFacteur } from "@/lib/connexion";
 import { DELAI_PAIEMENT_MS } from "@/lib/expiration";
 import { formaterDuree, formaterHeure, formaterPlage, formaterPrix } from "@/lib/format";
 import { motifAnnulation, type MotifAnnulation } from "@/lib/motif-annulation";
@@ -64,6 +68,11 @@ const exigerAccesReservation = cache(async (id: string) => {
   }
   const titulaire = await lireTitulaireReservation(id);
   if (!titulaire || !peutVoirReservation(utilisateur, titulaire)) {
+    // Personnel sans second facteur validé : le code d'abord. Même réponse
+    // que la réservation existe ou non (titulaire null compris).
+    if (doitValiderDeuxiemeFacteur(utilisateur)) {
+      redirect(adresseDeuxiemeFacteur(`/reservations/${id}`));
+    }
     notFound();
   }
   return utilisateur;

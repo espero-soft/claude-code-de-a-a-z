@@ -5,6 +5,7 @@
 // Prérequis : Mailpit lancé (API sur http://localhost:8025, ou MAILPIT_URL).
 import { execFileSync } from "node:child_process";
 import { expect, type Page } from "@playwright/test";
+import { attendrePasSuivant, codeTotp, pasTotp } from "./totp";
 
 const MAILPIT = process.env.MAILPIT_URL ?? "http://localhost:8025";
 // Better Auth vérifie l'origine (protection CSRF) : même port que
@@ -41,4 +42,48 @@ export async function seConnecter(page: Page, email: string) {
     headers: { origin: ORIGINE },
   });
   expect(connexion.status()).toBe(200);
+}
+
+// Clé TOTP des comptes du personnel enrôlés pendant ce fichier de test, et
+// dernier pas de 30 s utilisé (le serveur refuse un code déjà servi).
+const CLES_TOTP = new Map<string, string>();
+const DERNIER_PAS = new Map<string, number>();
+
+export function cleTotpConnue(email: string): string | undefined {
+  return CLES_TOTP.get(email);
+}
+
+// Connexion complète d'un employé ou d'un administrateur : code e-mail, puis
+// second facteur (enrôlement au premier passage), par les routes HTTP de
+// Better Auth. Le code TOTP est calculé à partir de la clé (e2e/totp.ts).
+export async function seConnecterPersonnel(page: Page, email: string) {
+  await seConnecter(page, email);
+  const request = page.context().request;
+
+  // Toujours tenter l'enrôlement : le compte a pu être recréé par le
+  // nettoyage depuis la dernière fois. Déjà enrôlé : on reprend la clé notée.
+  const enrolement = await request.post("/api/auth/two-factor/enable", {
+    data: { method: "totp" },
+    headers: { origin: ORIGINE },
+  });
+  let cle: string | undefined;
+  if (enrolement.status() === 200) {
+    const { totpURI } = (await enrolement.json()) as { totpURI: string };
+    cle = new URL(totpURI).searchParams.get("secret")!;
+    CLES_TOTP.set(email, cle);
+    DERNIER_PAS.delete(email);
+  } else {
+    expect((await enrolement.json()).code).toBe("TOTP_ALREADY_ENABLED");
+    cle = CLES_TOTP.get(email);
+    expect(cle, `clé TOTP inconnue pour ${email}`).toBeTruthy();
+  }
+
+  const dernier = DERNIER_PAS.get(email);
+  if (dernier !== undefined) await attendrePasSuivant(dernier);
+  DERNIER_PAS.set(email, pasTotp());
+  const verification = await request.post("/api/auth/two-factor/verify-totp", {
+    data: { code: codeTotp(cle!) },
+    headers: { origin: ORIGINE },
+  });
+  expect(verification.status(), await verification.text()).toBe(200);
 }

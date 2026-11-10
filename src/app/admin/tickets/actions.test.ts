@@ -8,6 +8,7 @@ const { getSession, prismaSimule } = vi.hoisted(() => ({
   getSession: vi.fn(),
   prismaSimule: {
     user: { findUnique: vi.fn() },
+    session: { findUnique: vi.fn() },
     ticket: { updateMany: vi.fn() },
   },
 }));
@@ -19,14 +20,29 @@ vi.mock("@/lib/prisma", () => ({ prisma: prismaSimule }));
 
 import { validerBrouillon } from "./actions";
 
-// Compte connecté avec ce rôle en base, ou visiteur (null).
-function connecter(role: string | null) {
+// Compte connecté avec ce rôle en base, ou visiteur (null). Par défaut, le
+// personnel a enrôlé son application et validé le second facteur il y a une
+// minute dans cette session.
+function connecter(
+  role: string | null,
+  facteur: { enrole: boolean; valideLe: Date | null } = {
+    enrole: true,
+    valideLe: new Date(Date.now() - 60_000),
+  },
+) {
   if (role === null) {
     getSession.mockResolvedValue(null);
     return;
   }
-  getSession.mockResolvedValue({ user: { id: "u1", role: "ADMIN" } });
-  prismaSimule.user.findUnique.mockResolvedValue({ id: "u1", email: "u@exemple.fr", name: "", role });
+  getSession.mockResolvedValue({ user: { id: "u1", role: "ADMIN" }, session: { id: "s1" } });
+  prismaSimule.user.findUnique.mockResolvedValue({
+    id: "u1",
+    email: "u@exemple.fr",
+    name: "",
+    role,
+    twofactors: facteur.enrole ? [{ id: "f1" }] : [],
+  });
+  prismaSimule.session.findUnique.mockResolvedValue({ deuxiemeFacteurLe: facteur.valideLe });
 }
 
 beforeEach(() => {
@@ -58,5 +74,21 @@ describe("validerBrouillon", () => {
       where: { id: "t1", statut: "A_TRAITER" },
       data: { statut: "VALIDE", valideLe: expect.any(Date) },
     });
+  });
+
+  it.each([
+    ["sans application configurée", { enrole: false, valideLe: null }],
+    ["sans code saisi dans cette session", { enrole: true, valideLe: null }],
+    ["avec un code saisi il y a plus de 12 heures", { enrole: true, valideLe: new Date(Date.now() - 13 * 3_600_000) }],
+  ])("refuse un employé %s (second facteur non validé)", async (_, facteur) => {
+    connecter("EMPLOYE", facteur);
+    expect(await validerBrouillon("t1")).toEqual({ erreur: "Action indisponible." });
+    expect(prismaSimule.ticket.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("refuse aussi l'administrateur sans second facteur validé", async () => {
+    connecter("ADMIN", { enrole: true, valideLe: null });
+    expect(await validerBrouillon("t1")).toEqual({ erreur: "Action indisponible." });
+    expect(prismaSimule.ticket.updateMany).not.toHaveBeenCalled();
   });
 });

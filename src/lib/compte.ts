@@ -15,6 +15,8 @@ export type CompteConnecte = { email: string; initiale: string; personnel: boole
 export const lireCompte = cache(async (): Promise<CompteConnecte | null> => {
   const utilisateur = await lireUtilisateur();
   if (!utilisateur) return null;
-  const { email, nom, role } = utilisateur;
-  return { email, initiale: initialeCompte(nom, email), personnel: estPersonnel(role) };
+  // Rôle du compte, pas le rôle effectif : un employé qui n'a pas encore
+  // saisi son second facteur voit le lien, qui le mène au code.
+  const { email, nom, roleCompte } = utilisateur;
+  return { email, initiale: initialeCompte(nom, email), personnel: estPersonnel(roleCompte) };
 });

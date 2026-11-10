@@ -2,8 +2,14 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { twoFactor } from "better-auth/plugins/two-factor";
 import { envoyerCourriel } from "@/lib/courriel";
 import { gardeConnexion, ROUTES_CODE_FERMEES } from "@/lib/garde-connexion";
+import {
+  gardeDeuxiemeFacteur,
+  NOM_EMETTEUR_TOTP,
+  ROUTES_DEUXIEME_FACTEUR_FERMEES,
+} from "@/lib/garde-deuxieme-facteur";
 import { prisma } from "@/lib/prisma";
 import { rattacherReservationsSansCompte } from "@/lib/rattachement";
 import { ROLE_PAR_DEFAUT } from "@/lib/roles";
@@ -20,7 +26,15 @@ export const auth = betterAuth({
   // Pas d'e-mail + mot de passe : emailAndPassword reste désactivé (défaut).
   // Routes de code inutilisées fermées (404) : elles trahissaient l'existence
   // d'un compte (voir garde-connexion.ts).
-  disabledPaths: ROUTES_CODE_FERMEES,
+  disabledPaths: [...ROUTES_CODE_FERMEES, ...ROUTES_DEUXIEME_FACTEUR_FERMEES],
+  session: {
+    additionalFields: {
+      // Date de validation du second facteur dans CETTE session (personnel
+      // seulement), posée par gardeDeuxiemeFacteur après un code correct.
+      // Jamais modifiable depuis le navigateur (input: false).
+      deuxiemeFacteurLe: { type: "date", required: false, input: false },
+    },
+  },
   user: {
     additionalFields: {
       // Rôle du compte (src/lib/roles.ts) : CLIENT à la création, EMPLOYE ou
@@ -61,6 +75,21 @@ export const auth = betterAuth({
   },
   plugins: [
     gardeConnexion(),
+    // Avant twoFactor : ses crochets passent avant les routes /two-factor/*.
+    gardeDeuxiemeFacteur(),
+    // Second facteur du personnel (SECURITE.md, section 13). Le module ne
+    // s'enclenche seul qu'après un mot de passe : ici, il sert à créer le
+    // secret et les codes de secours (chiffrés en base) et à vérifier un
+    // code ; c'est gardeDeuxiemeFacteur qui l'impose au personnel.
+    twoFactor({
+      issuer: NOM_EMETTEUR_TOTP,
+      // Pas de mot de passe dans l'application : sans cette option, chaque
+      // route exigerait un mot de passe que personne n'a. Les routes qui en
+      // deviendraient dangereuses sont fermées (ROUTES_DEUXIEME_FACTEUR_FERMEES).
+      allowPasswordless: true,
+      // Codes de secours : 10, chiffrés en base, à usage unique (défauts).
+      backupCodeOptions: { amount: 10, length: 10, storeBackupCodes: "encrypted" },
+    }),
     emailOTP({
       otpLength: 6,
       expiresIn: DUREE_CODE_SECONDES,

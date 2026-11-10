@@ -40,6 +40,49 @@ export function estPersonnel(role: Role): boolean {
   return peut(role, "tickets") || peut(role, "comptes");
 }
 
+// --- Second facteur (TOTP) du personnel ---
+// L'employé et l'administrateur lisent les données de tous les clients : le
+// code reçu par e-mail ne leur suffit pas (SECURITE.md, section 13).
+
+export function exigeDeuxiemeFacteur(role: Role): boolean {
+  return role === "EMPLOYE" || role === "ADMIN";
+}
+
+// Une validation vaut pour la session où elle a eu lieu, et pas plus de
+// 12 heures (une journée de travail) : au-delà, on redemande un code.
+export const DUREE_DEUXIEME_FACTEUR_MS = 12 * 60 * 60 * 1000;
+
+export function deuxiemeFacteurRecent(valideLe: Date | null, maintenant: Date): boolean {
+  if (!valideLe) return false;
+  const ecart = maintenant.getTime() - valideLe.getTime();
+  // Une date dans le futur n'est pas crédible : refusée.
+  return ecart >= 0 && ecart < DUREE_DEUXIEME_FACTEUR_MS;
+}
+
+export type EtatDeuxiemeFacteur =
+  | "inutile" // client : pas de second facteur
+  | "a-enroler" // personnel sans application configurée
+  | "a-verifier" // personnel enrôlé, code pas encore saisi dans cette session
+  | "valide"; // personnel, code saisi dans cette session depuis moins de 12 h
+
+export function etatDeuxiemeFacteur(
+  role: Role,
+  facteur: { enrole: boolean; valideLe: Date | null },
+  maintenant: Date,
+): EtatDeuxiemeFacteur {
+  if (!exigeDeuxiemeFacteur(role)) return "inutile";
+  if (!facteur.enrole) return "a-enroler";
+  return deuxiemeFacteurRecent(facteur.valideLe, maintenant) ? "valide" : "a-verifier";
+}
+
+// Rôle qui ouvre les droits. Tant que le second facteur n'est pas validé, un
+// employé ou un administrateur n'a que les droits d'un client : /admin, les
+// réservations des autres et les actions du personnel restent fermés, sans
+// avoir à y penser dans chaque contrôle.
+export function roleEffectif(role: Role, etat: EtatDeuxiemeFacteur): Role {
+  return exigeDeuxiemeFacteur(role) && etat !== "valide" ? "CLIENT" : role;
+}
+
 export type UtilisateurAcces = { id: string; role: Role };
 
 // Une réservation est visible par son titulaire (le compte qui l'a créée), et

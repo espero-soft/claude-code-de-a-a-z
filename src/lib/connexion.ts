@@ -126,6 +126,11 @@ export function adresseConnexion(chemin: string): string {
   return `/connexion?retour=${encodeURIComponent(cheminDeRetour(chemin))}`;
 }
 
+// Page du second facteur du personnel, qui ramène ensuite à `chemin`.
+export function adresseDeuxiemeFacteur(chemin: string): string {
+  return `/double-authentification?retour=${encodeURIComponent(cheminDeRetour(chemin))}`;
+}
+
 // Initiale du compte pour l'en-tête : celle du nom s'il est renseigné, sinon
 // celle de l'e-mail (le nom est vide à la création par code).
 export function initialeCompte(nom: string, email: string): string {

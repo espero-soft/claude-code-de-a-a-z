@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   adresseAdmin,
   decisionPremierAdmin,
+  DUREE_DEUXIEME_FACTEUR_MS,
+  etatDeuxiemeFacteur,
+  exigeDeuxiemeFacteur,
+  roleEffectif,
   estPersonnel,
   lireRole,
   peut,
@@ -142,5 +146,53 @@ describe("decisionPremierAdmin", () => {
     expect(decisionPremierAdmin(adresse, { role: "CLIENT" }, ["autre@centre.example"]).action).toBe(
       "refuser",
     );
+  });
+});
+
+describe("second facteur du personnel", () => {
+  const maintenant = new Date("2026-11-10T10:00:00Z");
+  const ilYa = (ms: number) => new Date(maintenant.getTime() - ms);
+
+  it("n'est exigé que de l'employé et de l'administrateur", () => {
+    expect(exigeDeuxiemeFacteur("CLIENT")).toBe(false);
+    expect(exigeDeuxiemeFacteur("EMPLOYE")).toBe(true);
+    expect(exigeDeuxiemeFacteur("ADMIN")).toBe(true);
+  });
+
+  it("guide l'enrôlement, puis demande un code à chaque session", () => {
+    expect(etatDeuxiemeFacteur("CLIENT", { enrole: false, valideLe: null }, maintenant)).toBe("inutile");
+    expect(etatDeuxiemeFacteur("EMPLOYE", { enrole: false, valideLe: null }, maintenant)).toBe("a-enroler");
+    expect(etatDeuxiemeFacteur("EMPLOYE", { enrole: true, valideLe: null }, maintenant)).toBe("a-verifier");
+    expect(etatDeuxiemeFacteur("ADMIN", { enrole: true, valideLe: ilYa(60_000) }, maintenant)).toBe("valide");
+  });
+
+  it("une validation ne vaut que 12 heures, et jamais pour une date future", () => {
+    const juste = ilYa(DUREE_DEUXIEME_FACTEUR_MS - 1);
+    const perimee = ilYa(DUREE_DEUXIEME_FACTEUR_MS);
+    expect(etatDeuxiemeFacteur("EMPLOYE", { enrole: true, valideLe: juste }, maintenant)).toBe("valide");
+    expect(etatDeuxiemeFacteur("EMPLOYE", { enrole: true, valideLe: perimee }, maintenant)).toBe("a-verifier");
+    expect(etatDeuxiemeFacteur("EMPLOYE", { enrole: true, valideLe: ilYa(-60_000) }, maintenant)).toBe(
+      "a-verifier",
+    );
+  });
+
+  it("une validation sans enrôlement ne compte pas", () => {
+    expect(etatDeuxiemeFacteur("ADMIN", { enrole: false, valideLe: ilYa(1000) }, maintenant)).toBe("a-enroler");
+  });
+
+  it("tant que le second facteur n'est pas validé, le personnel n'a que les droits d'un client", () => {
+    for (const role of ["EMPLOYE", "ADMIN"] as const) {
+      for (const etat of ["a-enroler", "a-verifier"] as const) {
+        const effectif = roleEffectif(role, etat);
+        expect(effectif).toBe("CLIENT");
+        expect(peut(effectif, "tickets")).toBe(false);
+        expect(peut(effectif, "reservations")).toBe(false);
+        expect(estPersonnel(effectif)).toBe(false);
+        expect(peutVoirReservation({ id: "p", role: effectif }, { utilisateurId: "client" })).toBe(false);
+      }
+    }
+    expect(roleEffectif("EMPLOYE", "valide")).toBe("EMPLOYE");
+    expect(roleEffectif("ADMIN", "valide")).toBe("ADMIN");
+    expect(roleEffectif("CLIENT", "inutile")).toBe("CLIENT");
   });
 });

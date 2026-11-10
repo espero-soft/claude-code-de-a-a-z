@@ -1,9 +1,9 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { adresseConnexion } from "@/lib/connexion";
+import { adresseConnexion, adresseDeuxiemeFacteur } from "@/lib/connexion";
 import { prisma } from "@/lib/prisma";
-import { estPersonnel, lireRole } from "@/lib/roles";
+import { deuxiemeFacteurRecent, estPersonnel, lireRole } from "@/lib/roles";
 
 // Trois contrôles, avant le rendu :
 //
@@ -22,14 +22,17 @@ import { estPersonnel, lireRole } from "@/lib/roles";
 //    le rôle (src/lib/acces.ts). Ne jamais compter sur le proxy pour protéger.
 //
 // 3. /admin : la session et le rôle sont lus pour qu'un client reçoive un vrai
-//    404 (la page, envoyée en flux, ne peut plus changer son code HTTP). Ce
-//    n'est qu'un doublon : la page et ses Server Actions revérifient.
+//    404 (la page, envoyée en flux, ne peut plus changer son code HTTP), et
+//    qu'un employé ou un administrateur sans second facteur validé dans cette
+//    session soit envoyé vers /double-authentification. Ce n'est qu'un
+//    doublon : la page et ses Server Actions revérifient (rôle effectif).
 export const config = {
   matcher: [
     "/salles/:id([^/.]+)",
     "/salles/:id([^/.]+)/reserver",
     "/reservations/:id([^/.]+)",
     "/compte",
+    "/double-authentification",
     "/admin",
     // Sauf /admin/introuvable, la page du 404 elle-même.
     "/admin/:chemin((?!introuvable$).*)",
@@ -41,6 +44,7 @@ function exigeCompte(chemin: string): boolean {
     chemin.endsWith("/reserver") ||
     chemin.startsWith("/reservations/") ||
     chemin === "/compte" ||
+    chemin === "/double-authentification" ||
     chemin === "/admin" ||
     chemin.startsWith("/admin/")
   );
@@ -60,6 +64,12 @@ export async function proxy(request: NextRequest) {
     }
     if (!estPersonnel(lireRole(session.user.role))) {
       return NextResponse.rewrite(new URL("/admin/introuvable", request.url));
+    }
+    const valideLe = session.session.deuxiemeFacteurLe;
+    if (!deuxiemeFacteurRecent(valideLe ? new Date(valideLe) : null, new Date())) {
+      return NextResponse.redirect(
+        new URL(adresseDeuxiemeFacteur(pathname + search), request.url),
+      );
     }
     return;
   }

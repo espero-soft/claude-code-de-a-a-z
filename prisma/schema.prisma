@@ -128,6 +128,10 @@ model User {
   // EMPLOYE ou ADMIN, relu par lireRole (src/lib/roles.ts).
   role          String?   @default("CLIENT")
   reservations  Reservation[]
+  // Extension twoFactor (module 12) : vrai une fois l'application
+  // d'authentification enrôlée et confirmée par un premier code.
+  twoFactorEnabled Boolean?    @default(false)
+  twofactors       TwoFactor[]
 
   @@unique([email])
   @@map("user")
@@ -143,6 +147,10 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Champ ajouté par `session.additionalFields` (src/lib/auth.ts) : date de
+  // validation du second facteur dans cette session (personnel), posée par
+  // gardeDeuxiemeFacteur. Vide : second facteur pas validé.
+  deuxiemeFacteurLe DateTime?
 
   @@unique([token])
   @@index([userId])
@@ -189,6 +197,32 @@ model RateLimit {
 
   @@unique([key])
   @@map("rateLimit")
+}
+
+// Extension twoFactor de Better Auth (module 12) : secret TOTP et codes de
+// secours du personnel, CHIFFRÉS avec BETTER_AUTH_SECRET. verified passe à
+// true au premier code correct (fin de l'enrôlement).
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
+}
+
+// Anti-rejeu des codes TOTP (src/lib/garde-deuxieme-facteur.ts) : empreinte
+// de « compte:code » accepté, gardée 3 minutes. Le module twoFactor accepte
+// sinon le même code plusieurs fois pendant sa fenêtre de validité.
+model CodeDeuxiemeFacteurUtilise {
+  empreinte String   @id // sha256 de « id du compte:code »
+  expireLe  DateTime
 }
 
 // Compteurs de la limite par adresse e-mail de la connexion par code

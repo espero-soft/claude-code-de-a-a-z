@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adresseConnexion,
+  adresseDeuxiemeFacteur,
   cheminDeRetour,
   erreurCode,
   erreurEmail,
@@ -148,5 +149,14 @@ describe("adresseConnexion", () => {
 
   it("ne glisse jamais une adresse extérieure dans le retour", () => {
     expect(adresseConnexion("//pirate.example")).toBe("/connexion?retour=%2F");
+  });
+});
+
+describe("adresseDeuxiemeFacteur", () => {
+  it("renvoie vers le second facteur avec la page demandée en retour, jamais vers l'extérieur", () => {
+    expect(adresseDeuxiemeFacteur("/admin/tickets")).toBe(
+      "/double-authentification?retour=%2Fadmin%2Ftickets",
+    );
+    expect(adresseDeuxiemeFacteur("https://pirate.example")).toBe("/double-authentification?retour=%2F");
   });
 });

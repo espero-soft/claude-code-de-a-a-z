@@ -18,7 +18,8 @@
     "cache-prompt": "tsx scripts/cache-prompt.ts",
     "traiter-ticket": "tsx scripts/traiter-ticket.ts",
     "importer-tickets": "tsx scripts/importer-tickets.ts",
-    "admin:creer": "tsx scripts/creer-admin.ts"
+    "admin:creer": "tsx scripts/creer-admin.ts",
+    "deuxieme-facteur:reinitialiser": "tsx scripts/reinitialiser-deuxieme-facteur.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.7.0",
@@ -29,7 +30,8 @@
     "nodemailer": "10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "stripe": "23.0.1"
+    "stripe": "23.0.1",
+    "uqr": "0.1.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

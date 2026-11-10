@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import { COMPTES_ROLES } from "./roles-exemple";
-import { seConnecter } from "./session";
+import { seConnecterPersonnel } from "./session";
 
 const RESUME_HAUTE = "Test Playwright : double débit signalé.";
 const RESUME_BASSE = "Test Playwright : question sur les horaires.";
@@ -23,7 +23,7 @@ test.beforeAll(() => {
 test.afterAll(nettoyer);
 
 test("liste les tickets par urgence et valide un brouillon", async ({ page }) => {
-  await seConnecter(page, COMPTES_ROLES.employe.email);
+  await seConnecterPersonnel(page, COMPTES_ROLES.employe.email);
   await page.goto("/");
   const navigation = page.getByRole("navigation", { name: "Navigation principale" });
   await navigation.getByRole("link", { name: "Tickets" }).click();

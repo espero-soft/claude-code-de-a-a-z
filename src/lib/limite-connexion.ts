@@ -24,7 +24,14 @@ export const LIMITE_ENVOIS: RegleLimite = { max: 3, fenetreMs: 15 * 60_000 };
 // 10⁶ codes possibles, soit moins de 1 chance sur 4 000 par jour d'attaque.
 export const LIMITE_ESSAIS: RegleLimite = { max: 10, fenetreMs: 60 * 60_000 };
 
-export type TypeLimite = "envoi" | "essai";
+// Essais de second facteur (code TOTP ou de secours) sur un même compte du
+// personnel. Better Auth ne compte pas ces essais quand une session est déjà
+// ouverte (notre cas : la session vient du code e-mail). 3 codes TOTP sont
+// acceptés à un instant donné (fenêtre de ±30 s) : 5 essais par heure donnent
+// moins de 1 chance sur 2 700 par jour, et il faut déjà la boîte e-mail.
+export const LIMITE_DEUXIEME_FACTEUR: RegleLimite = { max: 5, fenetreMs: 60 * 60_000 };
+
+export type TypeLimite = "envoi" | "essai" | "deuxieme-facteur";
 
 export type Compteur = { nombre: number; debut: Date };
 

@@ -7,6 +7,7 @@ const { getSession, prismaSimule } = vi.hoisted(() => ({
   getSession: vi.fn(),
   prismaSimule: {
     user: { findUnique: vi.fn(), update: vi.fn() },
+    session: { findUnique: vi.fn() },
     salle: { findFirst: vi.fn() },
     reservation: { create: vi.fn() },
   },
@@ -61,13 +62,15 @@ describe("reserver", () => {
   });
 
   function connecter(nom: string) {
-    getSession.mockResolvedValue({ user: { id: "claire" } });
+    getSession.mockResolvedValue({ user: { id: "claire" }, session: { id: "s1" } });
     prismaSimule.user.findUnique.mockResolvedValue({
       id: "claire",
       email: "claire@exemple.fr",
       name: nom,
       role: "CLIENT",
+      twofactors: [],
     });
+    prismaSimule.session.findUnique.mockResolvedValue({ deuxiemeFacteurLe: null });
   }
 
   it("rattache la réservation au compte, à son nom et à son e-mail, pas à ceux du formulaire", async () => {

@@ -12,9 +12,9 @@ import {
   IconeHorloge,
   IconePersonne,
 } from "@/components/icones";
-import { lireUtilisateur } from "@/lib/acces";
+import { doitValiderDeuxiemeFacteur, lireUtilisateur } from "@/lib/acces";
 import { ordonnerTickets } from "@/lib/admin-tickets";
-import { adresseConnexion } from "@/lib/connexion";
+import { adresseConnexion, adresseDeuxiemeFacteur } from "@/lib/connexion";
 import { formaterHeure, formaterPlage, formaterPrix } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { FUSEAU_CENTRE } from "@/lib/reservation";
@@ -89,6 +89,11 @@ async function EcranTickets() {
   const utilisateur = await lireUtilisateur();
   if (!utilisateur) {
     redirect(adresseConnexion("/admin/tickets"));
+  }
+  // Employé ou administrateur sans second facteur validé : d'abord le code
+  // de l'application d'authentification (son rôle effectif est CLIENT).
+  if (doitValiderDeuxiemeFacteur(utilisateur)) {
+    redirect(adresseDeuxiemeFacteur("/admin/tickets"));
   }
   // Un client reçoit la même réponse qu'une page inexistante.
   if (!peut(utilisateur.role, "tickets")) {

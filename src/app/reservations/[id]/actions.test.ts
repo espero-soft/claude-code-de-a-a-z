@@ -7,6 +7,7 @@ const { getSession, prismaSimule, ouvrirPaiement } = vi.hoisted(() => ({
   getSession: vi.fn(),
   prismaSimule: {
     user: { findUnique: vi.fn() },
+    session: { findUnique: vi.fn() },
     reservation: { findUnique: vi.fn() },
   },
   ouvrirPaiement: vi.fn(),
@@ -34,8 +35,16 @@ function connecter(id: string | null, role = "CLIENT") {
     getSession.mockResolvedValue(null);
     return;
   }
-  getSession.mockResolvedValue({ user: { id } });
-  prismaSimule.user.findUnique.mockResolvedValue({ id, email: `${id}@exemple.fr`, name: "", role });
+  getSession.mockResolvedValue({ user: { id }, session: { id: `session-${id}` } });
+  // Personnel : second facteur enrôlé et validé il y a une minute.
+  prismaSimule.user.findUnique.mockResolvedValue({
+    id,
+    email: `${id}@exemple.fr`,
+    name: "",
+    role,
+    twofactors: [{ id: "f1" }],
+  });
+  prismaSimule.session.findUnique.mockResolvedValue({ deuxiemeFacteurLe: new Date(Date.now() - 60_000) });
 }
 
 // En base : « r-titulaire » appartient au compte « titulaire » ; tout autre

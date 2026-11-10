@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { COMPTES_ROLES } from "./roles-exemple";
-import { nettoyer, ORIGINE, seConnecter } from "./session";
+import { nettoyer, ORIGINE, seConnecter, seConnecterPersonnel } from "./session";
 
 const { clientB, employe, admin } = COMPTES_ROLES;
 
@@ -69,7 +69,7 @@ for (const [libelle, compte] of [
   ["l'administrateur", admin],
 ] as const) {
   test(`${libelle} ouvre les tickets depuis la navigation`, async ({ page }) => {
-    await seConnecter(page, compte.email);
+    await seConnecterPersonnel(page, compte.email);
     await page.goto("/");
     await navigation(page).getByRole("link", { name: "Tickets" }).click();
 

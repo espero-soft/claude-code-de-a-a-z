@@ -160,7 +160,7 @@ L'extension `twoFactor` de Better Auth 1.7.14 **ne s'applique qu'aux connexions 
 - faire refuser par `exigerRole("EMPLOYE")` (couche d'accès, section 4) toute session d'employé ou d'admin non marquée, avec une redirection vers `/double-authentification` ;
 - tester ce refus avec Vitest (fonction pure) et Playwright.
 
-Revérifier ce comportement à chaque mise à jour de Better Auth : une version future pourrait couvrir `email-otp`.
+Revérifier ce comportement à chaque mise à jour de Better Auth : une version future pourrait couvrir `email-otp`. **Mis en œuvre : section 13.**
 
 ## 8. Installation (faite)
 
@@ -196,7 +196,7 @@ Pièges rencontrés :
 3. Écran `/connexion` (e-mail, puis code), avec le client `better-auth/react` et l'extension cliente `emailOTPClient`.
 4. ~~Ajouter `Reservation.utilisateurId`, protéger `reserver`, `payer` et `/reservations/[id]`.~~ Fait (section 11). Espace client `/compte`, nom et e-mail de la réservation tirés du compte, et rattachement des réservations faites sans compte (adresse vérifiée seulement) : fait (section 12).
 5. ~~Rôles ; remplacer `adminDisponible()` sur `/admin/tickets` et `validerBrouillon` ; lien « Tickets » selon le rôle.~~ Fait (section 11).
-6. TOTP obligatoire pour employés et admins (section 7.3).
+6. ~~TOTP obligatoire pour employés et admins (section 7.3).~~ Fait (section 13).
 7. ~~Tests : un visiteur est redirigé, un client ne voit pas la réservation d'un autre (404), un client n'ouvre pas `/admin/tickets`, et l'action `validerBrouillon` appelée sans rôle est refusée.~~ Fait (section 11).
 8. Mettre à jour `CLAUDE.md` (architecture, nouvelles variables d'environnement) et la section « Sécurité ».
 
@@ -256,10 +256,49 @@ Trois couches, chacune suffisante pour la sécurité des données :
 
 Prouvé par : `src/lib/roles.test.ts`, `src/lib/connexion.test.ts` (`adresseConnexion`), `src/app/**/actions.test.ts`, `e2e/fuite-reservation.spec.ts` (plus de `test.fail`), `e2e/roles.spec.ts` (dont : un client qui envoie `role: "ADMIN"` à `/update-user` reste client). Vérifié aussi qu'en retirant le contrôle de la page ou la garde de `validerBrouillon`, ces tests échouent.
 
-Reste à faire : TOTP obligatoire pour le personnel (section 7.3) ; traçabilité de qui valide un ticket.
+Reste à faire : traçabilité de qui valide un ticket. (TOTP du personnel : fait, section 13.)
 
 ## 12. Espace client et rattachement des anciennes réservations (module 12)
 
 - **`/compte`** (« Mes réservations », visible des comptes connectés) : réservations du compte rangées en *en attente de paiement*, *à venir* et *passées et annulées* (`src/lib/espace-client.ts`, pur et testé). Seul le titulaire voit ses réservations : la requête filtre sur `utilisateurId` du compte de la session.
 - **Le formulaire de réservation ne demande plus l'e-mail** : la Server Action `reserver` prend le nom et l'e-mail **du compte** et ignore ceux qu'un formulaire forgé enverrait (testé). Un compte encore sans nom (créé par le code) le saisit une fois ; il est enregistré dans le compte.
 - **Rattachement** (`src/lib/rattachement.ts`) : une réservation faite sans compte (`utilisateurId` vide) est rattachée au compte de même adresse, sans tenir compte de la casse ni des espaces, **seulement si l'adresse du compte est vérifiée**. Sinon, il suffirait de créer un compte à l'adresse d'un autre pour lire ses réservations. Une réservation qui a déjà un titulaire n'est jamais reprise (revérifié à l'écriture). Lancé à chaque création de session (`databaseHooks.session.create.after`, après que Better Auth a marqué l'adresse vérifiée) et à l'ouverture de `/compte`. Prouvé par `src/lib/rattachement.test.ts` (retirer la condition « vérifiée » fait échouer deux tests) et `e2e/compte.spec.ts` (la réservation sans compte de Claire apparaît et s'ouvre ; celle d'une autre adresse reste introuvable).
+
+## 13. Second facteur obligatoire du personnel (TOTP)
+
+L'employé et l'administrateur voient les données de tous les clients : pour eux, le code reçu par e-mail ne suffit pas. Un code d'application d'authentification (TOTP, RFC 6238), avec 10 codes de secours, est obligatoire.
+
+### 13.1 Le problème : `twoFactor` ne s'enclenche qu'après un mot de passe
+
+Vérifié dans `node_modules/better-auth/dist/plugins/two-factor/` (1.7.14) :
+
+- `index.mjs` : le crochet qui suspend une connexion pour demander le second facteur ne regarde que `/sign-in/email`, `/sign-in/username` et `/sign-in/phone-number`. Après `/sign-in/email-otp`, la session est ouverte normalement : rien ne demande le TOTP.
+- `verify-two-factor.mjs`, `totp/index.mjs`, `backup-codes/index.mjs` : quand un code est vérifié **avec une session déjà ouverte** (notre cas), il n'y a ni compteur d'essais (`beginAttempt` ne fait rien) ni verrouillage du compte (`isSignIn` est faux). Et aucun code n'est refusé pour avoir déjà servi.
+- Sans mot de passe, il faut `allowPasswordless` ; alors `get-totp-uri`, `disable` et `generate-backup-codes` ne demandent **que la session**. La session ouverte par le seul code e-mail suffirait à lire le secret, à désactiver le second facteur ou à obtenir de nouveaux codes de secours : le second facteur ne protégerait rien.
+
+Écartée : recopier le crochet du module pour `/sign-in/email-otp` (supprimer la session, poser le cookie de défi). Ce serait dépendre de détails internes (noms de cookies, valeurs de vérification) qui changent d'une version à l'autre.
+
+### 13.2 La solution : une session marquée, un rôle effectif
+
+1. **Le module sert à ce qu'il fait bien** : créer le secret (chiffré en base avec `BETTER_AUTH_SECRET`), les codes de secours (chiffrés, à usage unique, consommés de façon atomique) et vérifier un code. Table `twoFactor`.
+2. **La session ouverte par le code e-mail est gardée, puis marquée** : `Session.deuxiemeFacteurLe` (champ `session.additionalFields`, `input: false`) est posé par le serveur après un code TOTP ou de secours correct. À l'enrôlement, le module remplace la session : c'est la nouvelle qui est marquée. Une validation vaut pour cette session et 12 heures au plus ; une nouvelle connexion redemande le code.
+3. **Rôle effectif** (`roleEffectif`, `src/lib/roles.ts`, pur et testé) : tant que la session n'est pas marquée, un employé ou un administrateur n'a **que les droits d'un client**. `lireUtilisateur` (`src/lib/acces.ts`) renvoie ce rôle effectif dans `role` : tous les contrôles existants (pages, Server Actions `validerBrouillon` et `payer`, réservations des autres) se ferment sans exception à écrire. `roleCompte` ne sert qu'à guider vers `/double-authentification` et à afficher le lien « Tickets ».
+4. **Garde `gardeDeuxiemeFacteur`** (`src/lib/garde-deuxieme-facteur.ts`, crochets Better Auth valables en HTTP comme par `auth.api`) :
+   - routes `/two-factor/*` réservées au personnel, session ouverte (403 sinon) ; enrôlement par application seulement ;
+   - routes fermées (404, `disabledPaths`) : `get-totp-uri`, `disable`, `generate-backup-codes`, `send-otp`, `verify-otp` ;
+   - 5 essais par heure et par compte, codes TOTP et de secours confondus, comptés avant la vérification (même table `LimiteConnexion` que la connexion) ; remis à zéro par un code correct ;
+   - anti-rejeu : un code TOTP accepté est refusé pendant 3 minutes (empreinte SHA-256 de « compte:code », table `CodeDeuxiemeFacteurUtilise`) ;
+   - marque la session, seulement si l'enrôlement est confirmé (`twoFactor.verified`).
+5. **Écran `/double-authentification`** : premier passage, enrôlement guidé (QR code produit côté serveur par `uqr`, clé en base 32, 10 codes de secours, **affichés une seule fois** : la route qui relisait le secret est fermée, recharger la page recommence avec une nouvelle clé), puis un premier code qui confirme. Ensuite, un code à chaque session, ou un code de secours. Client : page introuvable (titre compris). `/admin/**` (proxy et page) et `/reservations/[id]` y renvoient le personnel non validé, puis le ramènent à la page demandée.
+6. **Téléphone et codes de secours perdus** : `npm run deuxieme-facteur:reinitialiser -- <e-mail>` sur le serveur (configuration supprimée, sessions fermées, nouvel enrôlement à la connexion suivante). Vérifier l'identité de la personne avant.
+
+### 13.3 Ce que l'on accepte
+
+- **Premier enrôlement** : il se fait avec la seule session e-mail. Qui contrôle la boîte d'un employé **avant** son premier passage pourrait enrôler sa propre application. On réduit la fenêtre en nommant l'employé juste avant sa première connexion ; une fois enrôlé, ré-enrôler par-dessus est refusé (`TOTP_ALREADY_ENABLED`).
+- **Force brute** : 3 codes TOTP sont valables à un instant donné (±30 s) ; 5 essais par heure donnent moins de 1 chance sur 2 700 par jour, et il faut déjà la boîte e-mail. Un pirate peut épuiser les essais d'un employé (blocage d'au plus une heure) : on le préfère à l'intrusion.
+- **Anti-rejeu** : la vérification puis l'écriture ne sont pas atomiques ; deux requêtes simultanées avec le même code pourraient passer toutes deux. Il faut déjà connaître le code.
+
+### 13.4 Preuves
+
+- Vitest : `roles.test.ts` (état du second facteur, 12 heures, rôle effectif), `deuxieme-facteur.test.ts` (saisies, messages), `admin/tickets/actions.test.ts` (l'action refuse l'employé et l'administrateur sans second facteur validé). Neutraliser `roleEffectif` fait échouer 5 tests.
+- Playwright `e2e/double-authentification.spec.ts`, **sans téléphone** : le code est calculé à partir de la clé affichée par une implémentation indépendante de la RFC 6238 sur `node:crypto` (`e2e/totp.ts`, vérifiée sur les vecteurs de la RFC). Enrôlement guidé, faux code refusé, `/admin` et réservations fermés tant que le code manque, code redemandé à chaque session, code de secours à usage unique, rejeu refusé, routes dangereuses en 404, client refusé (403), 6e essai refusé même juste (429), mobile.

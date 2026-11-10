@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { COMPTES_ROLES } from "./roles-exemple";
-import { nettoyer, seConnecter } from "./session";
+import { nettoyer, seConnecter, seConnecterPersonnel } from "./session";
 
 const NOM_DEMO = "Client de démonstration";
 const EMAIL_DEMO = "demo@example.com";
@@ -145,7 +145,7 @@ for (const [libelle, compte] of [
   ["l'administrateur", admin],
 ] as const) {
   test(`${libelle} voit la réservation d'un client, sans pouvoir la payer`, async ({ page }) => {
-    await seConnecter(page, compte.email);
+    await seConnecterPersonnel(page, compte.email);
     await ouvrir(page, `/reservations/${reservationId}`);
 
     await expect(contenu(page).getByText(clientA.nom)).toBeVisible();

@@ -2,7 +2,15 @@ import { headers } from "next/headers";
 import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { lireRole, peut, type Capacite, type Role } from "@/lib/roles";
+import {
+  etatDeuxiemeFacteur,
+  lireRole,
+  peut,
+  roleEffectif,
+  type Capacite,
+  type EtatDeuxiemeFacteur,
+  type Role,
+} from "@/lib/roles";
 
 // Couche d'accès (SECURITE.md, section 4) : qui fait la requête, et avec quel
 // rôle. Les pages ET chaque Server Action passent par ici : le proxy
@@ -12,23 +20,66 @@ import { lireRole, peut, type Capacite, type Role } from "@/lib/roles";
 // Lit le cookie de session : à appeler dans un composant sous <Suspense>
 // (Cache Components) ou dans une Server Action, jamais dans un "use cache".
 
-export type Utilisateur = { id: string; email: string; nom: string; role: Role };
+export type Utilisateur = {
+  id: string;
+  email: string;
+  nom: string;
+  // Rôle qui ouvre les droits : celui du compte, ramené à CLIENT tant que le
+  // second facteur d'un employé ou d'un administrateur n'est pas validé dans
+  // cette session (roleEffectif). C'est lui que tous les contrôles lisent.
+  role: Role;
+  // Rôle enregistré sur le compte : pour guider vers le second facteur et
+  // afficher le lien « Tickets », jamais pour ouvrir un droit.
+  roleCompte: Role;
+  deuxiemeFacteur: EtatDeuxiemeFacteur;
+};
 
 // cache() : une seule lecture par requête, même si l'en-tête et la page la
 // demandent.
 export const lireUtilisateur = cache(async (): Promise<Utilisateur | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
-  // Le rôle est relu en base, et non dans la session : un rôle retiré prend
-  // effet à la requête suivante, même si un cache de session est activé un
-  // jour (session.cookieCache).
-  const compte = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, email: true, name: true, role: true },
-  });
-  if (!compte) return null;
-  return { id: compte.id, email: compte.email, nom: compte.name, role: lireRole(compte.role) };
+  // Rôle, enrôlement et validation du second facteur relus en base, et non
+  // dans la session : un rôle retiré prend effet à la requête suivante, même
+  // si un cache de session est activé un jour (session.cookieCache).
+  const [compte, ligneSession] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        twofactors: { where: { verified: true }, select: { id: true }, take: 1 },
+      },
+    }),
+    prisma.session.findUnique({
+      where: { id: session.session.id },
+      select: { deuxiemeFacteurLe: true },
+    }),
+  ]);
+  if (!compte || !ligneSession) return null;
+  const roleCompte = lireRole(compte.role);
+  const deuxiemeFacteur = etatDeuxiemeFacteur(
+    roleCompte,
+    { enrole: compte.twofactors.length > 0, valideLe: ligneSession.deuxiemeFacteurLe },
+    new Date(),
+  );
+  return {
+    id: compte.id,
+    email: compte.email,
+    nom: compte.name,
+    role: roleEffectif(roleCompte, deuxiemeFacteur),
+    roleCompte,
+    deuxiemeFacteur,
+  };
 });
+
+// Le personnel qui n'a pas encore validé son second facteur dans cette
+// session (à guider vers /double-authentification plutôt qu'un 404).
+export function doitValiderDeuxiemeFacteur(utilisateur: Utilisateur): boolean {
+  return utilisateur.deuxiemeFacteur === "a-enroler" || utilisateur.deuxiemeFacteur === "a-verifier";
+}
 
 // L'utilisateur s'il a la capacité demandée, sinon null (visiteur ou rôle
 // insuffisant : l'appelant choisit sa réponse).
