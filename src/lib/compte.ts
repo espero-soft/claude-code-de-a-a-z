@@ -1,9 +1,14 @@
 import { cache } from "react";
 import { lireUtilisateur } from "@/lib/acces";
 import { initialeCompte } from "@/lib/connexion";
-import { estPersonnel } from "@/lib/roles";
+import { estPersonnel, peut } from "@/lib/roles";
 
-export type CompteConnecte = { email: string; initiale: string; personnel: boolean };
+export type CompteConnecte = {
+  email: string;
+  initiale: string;
+  personnel: boolean;
+  administrateur: boolean; // lien « Journal » seulement
+};
 
 // Compte de la requête en cours, ou null pour un visiteur. Lit le cookie de
 // session : à appeler dans un composant sous <Suspense> (Cache Components),
@@ -18,5 +23,10 @@ export const lireCompte = cache(async (): Promise<CompteConnecte | null> => {
   // Rôle du compte, pas le rôle effectif : un employé qui n'a pas encore
   // saisi son second facteur voit le lien, qui le mène au code.
   const { email, nom, roleCompte } = utilisateur;
-  return { email, initiale: initialeCompte(nom, email), personnel: estPersonnel(roleCompte) };
+  return {
+    email,
+    initiale: initialeCompte(nom, email),
+    personnel: estPersonnel(roleCompte),
+    administrateur: peut(roleCompte, "journal"),
+  };
 });

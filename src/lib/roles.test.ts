@@ -6,6 +6,7 @@ import {
   etatDeuxiemeFacteur,
   exigeDeuxiemeFacteur,
   roleEffectif,
+  capacitePageAdmin,
   estPersonnel,
   lireRole,
   peut,
@@ -31,9 +32,9 @@ describe("lireRole", () => {
 
 describe("peut", () => {
   const attendu: Record<Role, Record<Capacite, boolean>> = {
-    CLIENT: { reserver: true, reservations: false, tickets: false, chiffres: false, comptes: false },
-    EMPLOYE: { reserver: true, reservations: true, tickets: true, chiffres: false, comptes: false },
-    ADMIN: { reserver: true, reservations: true, tickets: true, chiffres: true, comptes: true },
+    CLIENT: { reserver: true, reservations: false, tickets: false, chiffres: false, comptes: false, journal: false },
+    EMPLOYE: { reserver: true, reservations: true, tickets: true, chiffres: false, comptes: false, journal: false },
+    ADMIN: { reserver: true, reservations: true, tickets: true, chiffres: true, comptes: true, journal: true },
   };
 
   for (const [role, capacites] of Object.entries(attendu) as [Role, Record<Capacite, boolean>][]) {
@@ -47,6 +48,25 @@ describe("peut", () => {
   it("l'employé ne voit ni les chiffres ni les comptes", () => {
     expect(peut("EMPLOYE", "chiffres")).toBe(false);
     expect(peut("EMPLOYE", "comptes")).toBe(false);
+  });
+});
+
+describe("capacitePageAdmin (proxy de /admin)", () => {
+  it("réserve le journal des connexions à l'administrateur", () => {
+    expect(capacitePageAdmin("/admin/journal")).toBe("journal");
+    expect(peut("EMPLOYE", capacitePageAdmin("/admin/journal"))).toBe(false);
+    expect(peut("ADMIN", capacitePageAdmin("/admin/journal"))).toBe(true);
+  });
+
+  it("ouvre les tickets au personnel", () => {
+    expect(capacitePageAdmin("/admin/tickets")).toBe("tickets");
+    expect(capacitePageAdmin("/admin")).toBe("tickets");
+  });
+
+  it("exige la capacité la plus forte pour une page inconnue (refus par défaut)", () => {
+    for (const chemin of ["/admin/inconnue", "/admin/journalx", "/admin/ticketsx"]) {
+      expect(peut("EMPLOYE", capacitePageAdmin(chemin))).toBe(false);
+    }
   });
 });
 

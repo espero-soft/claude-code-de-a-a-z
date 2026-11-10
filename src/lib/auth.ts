@@ -10,6 +10,7 @@ import {
   NOM_EMETTEUR_TOTP,
   ROUTES_DEUXIEME_FACTEUR_FERMEES,
 } from "@/lib/garde-deuxieme-facteur";
+import { journalConnexions } from "@/lib/garde-journal";
 import { prisma } from "@/lib/prisma";
 import { rattacherReservationsSansCompte } from "@/lib/rattachement";
 import { ROLE_PAR_DEFAUT } from "@/lib/roles";
@@ -74,6 +75,9 @@ export const auth = betterAuth({
     storage: "database",
   },
   plugins: [
+    // Journal des connexions (SECURITE.md, section 15) : réussites et refus
+    // des routes ; les blocages des gardes sont journalisés par elles.
+    journalConnexions(),
     gardeConnexion(),
     // Avant twoFactor : ses crochets passent avant les routes /two-factor/*.
     gardeDeuxiemeFacteur(),

@@ -237,6 +237,25 @@ model CodeSuppressionCompte {
   expireLe      DateTime
 }
 
+// Journal des connexions (SECURITE.md section 15, src/lib/journal.ts) : qui
+// s'est connecté, quand, et ce qui a échoué. Lu par l'administrateur seul sur
+// /admin/journal. Jamais de code, de jeton ni de secret : aucun champ libre,
+// le motif est un code de la liste MOTIFS. Effacé au bout de 90 jours.
+// Pas de relation vers User : la trace d'un compte supprimé reste (90 jours).
+model EvenementConnexion {
+  id            String   @id @default(cuid())
+  type          String // TypeEvenement (src/lib/journal.ts)
+  email         String // en minuscules ; vide si inconnue
+  utilisateurId String? // compte concerné, s'il est connu
+  motif         String? // Motif (src/lib/journal.ts), jamais un texte libre
+  ip            String?
+  navigateur    String? // en-tête User-Agent, tronqué
+  createdAt     DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([createdAt])
+}
+
 // Compteurs de la limite par adresse e-mail de la connexion par code
 // (src/lib/limite-connexion.ts, SECURITE.md section 10) : envois de codes et
 // essais de code, quelle que soit l'adresse IP. Table distincte de rateLimit,

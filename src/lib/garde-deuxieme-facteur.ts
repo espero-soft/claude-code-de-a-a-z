@@ -7,6 +7,7 @@ import {
   isAPIError,
 } from "better-auth/api";
 import { consommerLimite } from "@/lib/garde-connexion";
+import { entetesDe, noterEvenement } from "@/lib/garde-journal";
 import { cleLimite, LIMITE_DEUXIEME_FACTEUR } from "@/lib/limite-connexion";
 import { prisma } from "@/lib/prisma";
 import { exigeDeuxiemeFacteur, lireRole } from "@/lib/roles";
@@ -110,6 +111,16 @@ export function gardeDeuxiemeFacteur() {
                 LIMITE_DEUXIEME_FACTEUR,
               );
               if (!decision.autorise) {
+                // Refus avant la route : le journal ne le verrait pas.
+                await noterEvenement(
+                  {
+                    type: "COMPTE_BLOQUE",
+                    email: compte.email,
+                    utilisateurId: compte.id,
+                    motif: "trop-d-essais-de-deuxieme-facteur",
+                  },
+                  entetesDe(contexte),
+                );
                 throw new APIError(
                   "TOO_MANY_REQUESTS",
                   {
@@ -127,6 +138,15 @@ export function gardeDeuxiemeFacteur() {
                 where: { empreinte: empreinteCode(compte.id, contexte.body.code) },
               });
               if (deja && deja.expireLe > new Date()) {
+                await noterEvenement(
+                  {
+                    type: "DEUXIEME_FACTEUR_REFUSE",
+                    email: compte.email,
+                    utilisateurId: compte.id,
+                    motif: "code-deja-utilise",
+                  },
+                  entetesDe(contexte),
+                );
                 throw APIError.from("UNAUTHORIZED", {
                   code: CODE_DEJA_UTILISE,
                   message: "This code has already been used",

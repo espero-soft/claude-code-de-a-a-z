@@ -344,3 +344,49 @@ Page `/profil` (« Mon profil » : initiale du compte dans la barre d'ordinateur
 - Vitest, actions appelées directement (`src/app/profil/actions.test.ts`) : nom écrit sur le seul compte de la session ; appareil d'un autre compte refusé comme un inexistant ; code envoyé à l'adresse du compte, gardé en empreinte ; mauvais code, autre appareil, paiement en cours, dernier administrateur : rien n'est effacé. `src/lib/profil.test.ts` (nom, navigateurs, ordre des appareils) et `src/lib/suivi-paiement.test.ts` (`fermerPaiementsEnCours`).
 - Contre-épreuves : retirer le contrôle du dernier administrateur de la transaction fait échouer 3 tests, de `refusSuppression` 4 ; retirer l'anonymisation, 2 ; retirer le filtre du compte en déconnectant un appareil, 1 ; ne plus compter l'essai, 1.
 - Playwright `e2e/profil.spec.ts` : accès par la navigation ; nom ; deux navigateurs, l'autre déconnecté perd sa session ; suppression par le code lu dans Mailpit (mauvais code d'abord), puis en base plus de compte ni de session, la réservation payée anonymisée, l'autre supprimée ; employé sans second facteur refusé.
+
+## 15. Journal des connexions
+
+Page `/admin/journal`, **réservée à l'administrateur** (capacité `journal`, pas l'employé) : elle répond à « qui s'est connecté, quand, et qu'est-ce qui a échoué ? ». Les adresses IP et les échecs de tous les comptes, personnel compris, y figurent : d'où une capacité à part. Le proxy répond un vrai 404 à l'employé comme au client (`capacitePageAdmin`, refus par défaut pour une page `/admin` inconnue) ; la page revérifie sous `<Suspense>`.
+
+### 15.1 Ce qui est enregistré
+
+Table `EvenementConnexion` : type, adresse e-mail (minuscules), compte, motif, adresse IP, navigateur (`User-Agent` tronqué à 300 caractères), date. Pas de relation vers `user` : la trace d'un compte supprimé reste, jusqu'à la purge.
+
+| Événement | Où | Motif |
+|---|---|---|
+| Code demandé | `journalConnexions` (`src/lib/garde-journal.ts`), après `/email-otp/send-verification-otp` | |
+| Connexion réussie / code refusé | après `/sign-in/email-otp` | code incorrect, expiré, épuisé (3 essais) |
+| Compte bloqué | `gardeConnexion` et `gardeDeuxiemeFacteur`, **avant** de refuser | trop de codes demandés, trop d'essais de code, trop d'essais de second facteur |
+| Second facteur validé / refusé | après `/two-factor/verify-totp` et `verify-backup-code` ; rejeu dans `gardeDeuxiemeFacteur` | application, code de secours, code déjà utilisé |
+| Déconnexion | avant `/sign-out` (après, la session n'existe plus) | |
+| Appareil déconnecté | `deconnecterAppareil`, `deconnecterAutresAppareils` (`src/app/profil/actions.ts`), seulement si une session a été supprimée | un appareil, tous les autres |
+| Compte supprimé | `confirmerSuppression`, après l'effacement réussi | |
+
+Un refus levé par un crochet `before` arrête Better Auth avant les crochets `after` (`better-auth/dist/api/dispatch.mjs`) : les gardes journalisent donc elles-mêmes leurs blocages.
+
+### 15.2 Jamais un code, un jeton ni un secret
+
+- **Aucun champ libre** : type et motif viennent de listes fermées (`TYPES_EVENEMENT`, `MOTIFS` dans `src/lib/journal.ts`) ; un motif inconnu devient « autre ». `preparerEvenement` ne reprend que les champs prévus : un corps de requête passé entier (avec `otp`, `token`, `secret`) est réduit.
+- L'adresse e-mail doit en avoir la forme (un code collé dans le champ est écarté) ; l'adresse IP aussi (chiffres, hexadécimal, `.` et `:`) ; le navigateur perd ses caractères de contrôle.
+- Les crochets ne lisent du corps que `email`, jamais `otp` ni `code`.
+
+### 15.3 Conservation : 90 jours
+
+Chaque écriture efface les lignes de plus de 90 jours (`journaliser` puis `purgerJournal`) ; la page purge aussi avant de lire, pour ne jamais afficher une ligne trop vieille même sans connexion récente. Pas de tâche planifiée. Le journal ne fait **jamais** échouer l'opération journalisée (erreur écrite dans la console, `false`).
+
+### 15.4 Ce que l'on accepte
+
+- **Adresse IP indicative** : premier élément de `X-Forwarded-For`, que le client choisit si le proxy de production ne le réécrit pas (même réserve que la limite de Better Auth, section 10). Le `User-Agent` aussi est choisi par le navigateur.
+- **Trace d'un compte supprimé** : son adresse reste au journal jusqu'à 90 jours (intérêt légitime : sécurité). Le compte, lui, est effacé (section 14).
+- **Volume** : chaque requête bloquée écrit une ligne. Les limites par adresse et par IP (production) bornent le rythme, la purge le stock.
+- **Filtre** : sous-chaîne de l'adresse, par `instr()` en SQL paramétré (le `contains` de Prisma laisse `%` et `_` agir en jokers sous SQLite) ; 200 lignes au plus.
+
+### 15.5 Preuves
+
+- Vitest `src/lib/journal.test.ts` (pur) : champs non prévus écartés, code collé dans l'adresse refusé, motif libre ramené à « autre », IP forgée écartée, `User-Agent` nettoyé, limite de 90 jours, motifs de Better Auth.
+- Vitest `src/lib/journal-connexions.test.ts`, **vraie base SQLite temporaire** : écriture, purge à l'écriture et à la lecture (89 jours gardés, 90 jours + 1 ms effacés), filtre partiel insensible à la casse, `%` et `_` non jokers, 200 lignes, journal en panne sans échec.
+- Vitest `src/lib/journal-auth.test.ts`, **le vrai Better Auth** sur une base temporaire : code demandé, refusé, épuisé, connexion, déconnexion, blocages (envois, essais, second facteur), second facteur refusé, validé et rejoué, avec IP et navigateur ; aucune ligne ne contient le code e-mail, le code TOTP, la clé TOTP, les codes de secours ni le jeton de session.
+- Vitest `src/app/profil/actions.test.ts` : appareil déconnecté et compte supprimé journalisés, rien quand rien n'a été fait, jamais le code de suppression. `src/lib/roles.test.ts` : `journal` à l'administrateur seul.
+- Contre-épreuves : retirer la purge à l'écriture fait échouer 1 test ; recopier l'événement entier, 2 ; ouvrir `journal` à l'employé, 2.
+- Playwright `e2e/admin-journal.spec.ts` : l'administrateur arrive par le lien « Journal », retrouve le code refusé puis la connexion d'un client, filtre par une partie de l'adresse, aucun code à 6 chiffres sur la page ; l'employé n'a pas le lien et reçoit un 404 ; client 404, visiteur renvoyé vers la connexion ; mobile en cartes, sans défilement de côté.

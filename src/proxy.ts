@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { adresseConnexion, adresseDeuxiemeFacteur } from "@/lib/connexion";
 import { prisma } from "@/lib/prisma";
-import { deuxiemeFacteurRecent, estPersonnel, lireRole } from "@/lib/roles";
+import { capacitePageAdmin, deuxiemeFacteurRecent, estPersonnel, lireRole, peut } from "@/lib/roles";
 
 // Trois contrôles, avant le rendu :
 //
@@ -26,6 +26,8 @@ import { deuxiemeFacteurRecent, estPersonnel, lireRole } from "@/lib/roles";
 //    qu'un employé ou un administrateur sans second facteur validé dans cette
 //    session soit envoyé vers /double-authentification. Ce n'est qu'un
 //    doublon : la page et ses Server Actions revérifient (rôle effectif).
+//    Chaque page de /admin a sa capacité (capacitePageAdmin) : /admin/journal
+//    répond 404 à l'employé comme au client.
 export const config = {
   matcher: [
     "/salles/:id([^/.]+)",
@@ -64,7 +66,8 @@ export async function proxy(request: NextRequest) {
     if (!session) {
       return NextResponse.redirect(new URL(adresseConnexion(pathname + search), request.url));
     }
-    if (!estPersonnel(lireRole(session.user.role))) {
+    const role = lireRole(session.user.role);
+    if (!estPersonnel(role)) {
       return NextResponse.rewrite(new URL("/admin/introuvable", request.url));
     }
     const valideLe = session.session.deuxiemeFacteurLe;
@@ -72,6 +75,12 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(
         new URL(adresseDeuxiemeFacteur(pathname + search), request.url),
       );
+    }
+    // Page réservée à un rôle plus élevé (le journal, à l'administrateur) :
+    // un vrai 404 pour l'employé aussi. Vérifié après le second facteur, pour
+    // ne rien révéler de la page avant le code.
+    if (!peut(role, capacitePageAdmin(pathname))) {
+      return NextResponse.rewrite(new URL("/admin/introuvable", request.url));
     }
     return;
   }
