@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { prisma } from "@/lib/prisma";
+import { listerSallesActives } from "@/lib/salles";
 
 export const metadata: Metadata = {
   title: "Nos salles de réunion",
@@ -50,11 +50,7 @@ async function ListeSalles() {
   // exécuterait la requête au build et figerait la liste dans la page.
   await connection();
 
-  const salles = await prisma.salle.findMany({
-    where: { active: true },
-    include: { equipements: { orderBy: { nom: "asc" } } },
-    orderBy: { capacite: "asc" },
-  });
+  const salles = await listerSallesActives();
 
   if (salles.length === 0) {
     return (

@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 // ne peut plus changer son code HTTP. Le proxy vérifie donc la salle avant,
 // pour qu'une salle inconnue ou désactivée reçoive un vrai 404. Même chose pour
 // la page de réservation.
+// `[^/.]+` : un identifiant (cuid) ne contient jamais de point, alors que les
+// photos de public/salles en ont un (/salles/atelier.jpg) ; sans cette
+// exclusion, le proxy les prendrait pour des salles inconnues (404).
 export const config = {
-  matcher: ["/salles/:id", "/salles/:id/reserver"],
+  matcher: ["/salles/:id([^/.]+)", "/salles/:id([^/.]+)/reserver"],
 };
 
 export async function proxy(request: NextRequest) {

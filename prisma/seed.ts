@@ -1,4 +1,5 @@
-// Insère les 4 salles du centre d'affaires et une réservation confirmée de
+// Insère les 4 salles du centre d'affaires (photos optimisées dans
+// public/salles, d'après design/photos) et une réservation confirmée de
 // démonstration. Relançable sans créer de doublon : chaque salle est retrouvée
 // par son slug, la réservation par son identifiant fixe, puis mise à jour.
 import "dotenv/config";
@@ -10,6 +11,7 @@ import { heureDeParis } from "../src/lib/reservation";
 const salles = [
   {
     slug: "atelier",
+    photo: "/salles/atelier.jpg",
     nom: "L'Atelier",
     description:
       "Petite salle chaleureuse, idéale pour un entretien ou un point d'équipe.",
@@ -19,6 +21,7 @@ const salles = [
   },
   {
     slug: "horizon",
+    photo: "/salles/horizon.jpg",
     nom: "Horizon",
     description:
       "Salle lumineuse avec vue dégagée, pensée pour les réunions de travail.",
@@ -28,6 +31,7 @@ const salles = [
   },
   {
     slug: "agora",
+    photo: "/salles/agora.jpg",
     nom: "Agora",
     description:
       "Grande salle modulable pour les ateliers, formations et présentations.",
@@ -37,6 +41,7 @@ const salles = [
   },
   {
     slug: "conseil",
+    photo: "/salles/conseil.jpg",
     nom: "Salle du Conseil",
     description:
       "Salle de direction au mobilier haut de gamme, pour vos rendez-vous importants.",

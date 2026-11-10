@@ -112,6 +112,53 @@ export function IconeCalendrier(props: PropsIcone) {
   );
 }
 
+export function IconePersonnes(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </Icone>
+  );
+}
+
+// Étiquette de prix (devant un tarif, à la place de l'icône d'écran des maquettes).
+export function IconeEtiquette(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4Z" />
+      <circle cx="7.5" cy="7.5" r="1" />
+    </Icone>
+  );
+}
+
+export function IconeCarteBancaire(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
+    </Icone>
+  );
+}
+
+// Écran de présentation (salles équipées).
+export function IconeEcran(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M2 3h20M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3M7 21l5-5 5 5" />
+    </Icone>
+  );
+}
+
+export function IconeMallette(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+      <rect x="2" y="6" width="20" height="14" rx="2" />
+    </Icone>
+  );
+}
+
 // Indicateur tournant du bouton « en cours » (animation coupée si l'usager
 // a demandé moins de mouvement).
 export function IconeChargement({ className = "size-5", ...props }: PropsIcone) {

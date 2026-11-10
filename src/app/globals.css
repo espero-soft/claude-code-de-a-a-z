@@ -79,8 +79,13 @@
 
   h1,
   h2,
-  h3 {
+  h3,
+  .font-titres {
     @apply font-titres;
+    /* Playfair Display a des chiffres elzéviriens par défaut (« 15 » ou
+       « 20 h » descendent sous la ligne) : chiffres alignés, plus lisibles
+       pour des horaires et des prix. */
+    font-variant-numeric: lining-nums;
   }
 
   /* Focus visible sur tout élément interactif : anneau cuivre de 3 px. */
