@@ -32,6 +32,17 @@
       "env": {
         "DATABASE_URL": "file:./dev.db"
       }
+    },
+    "stripe": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@stripe/mcp@0.3.3"
+      ],
+      "env": {
+        "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}"
+      }
     }
   }
 }
