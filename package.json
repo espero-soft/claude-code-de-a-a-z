@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "revue": "node scripts/revue.mjs"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",

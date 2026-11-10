@@ -54,3 +54,6 @@ next-env.d.ts
 
 # Captures du serveur MCP Playwright
 .playwright-mcp/
+
+# Rapport de npm run revue
+/revue.md
