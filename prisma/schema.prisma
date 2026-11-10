@@ -48,6 +48,10 @@ model Reservation {
   emailClient          String
   statut               StatutReservation @default(EN_ATTENTE)
   montantTotalCentimes Int
+  // Dernière session Stripe Checkout ouverte pour la payer (null avant le
+  // premier clic sur « Payer ») : le serveur la relit auprès de Stripe pour
+  // vérifier le paiement.
+  stripeSessionId      String?           @unique
   createdAt            DateTime          @default(now())
 
   @@index([salleId, debut])
