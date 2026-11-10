@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { CarteSalle, TAILLES_CARTE_SALLE } from "@/components/CarteSalle";
 import { listerSallesActives } from "@/lib/salles";
 
 export const metadata: Metadata = {
@@ -9,38 +9,24 @@ export const metadata: Metadata = {
   description: "Les salles de réunion du centre d'affaires, louées à l'heure.",
 };
 
-const formatPrix = new Intl.NumberFormat("fr-FR", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-
+// Liste des salles (maquettes 03 et 04, plan de refonte) : cartes de salle
+// lues en base, avec leurs équipements réels. Aucun bouton cuivre ici : la
+// carte entière mène à la fiche, où se trouve « Réserver cette salle ».
 export default function SallesPage() {
   return (
-    <main className="flex-1 bg-slate-50 px-6 py-16 text-slate-900">
-      <div className="mx-auto max-w-5xl">
-        <Link
-          href="/"
-          className="text-sm font-medium text-orange-600 hover:text-orange-700"
-        >
-          ← Accueil
-        </Link>
-        <h1 className="mt-4 text-4xl font-bold tracking-tight">
-          Nos salles de réunion
-        </h1>
-        <p className="mt-4 text-lg text-slate-600">
-          Choisissez la salle adaptée à votre réunion. Toutes se louent à
-          l&apos;heure, du lundi au vendredi, de 8 h à 20 h.
-        </p>
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 md:py-16">
+      <h1 className="text-titre-1 text-marine">Nos salles de réunion</h1>
+      <span aria-hidden="true" className="mt-4 block h-1 w-16 rounded-full bg-cuivre" />
+      <p className="mt-4 max-w-2xl text-lg leading-7 text-encre-douce">
+        Choisissez la salle adaptée à votre réunion. Toutes se louent à
+        l&apos;heure, du lundi au vendredi, <span className="whitespace-nowrap">de 8 h à 20 h</span>.
+      </p>
 
-        {/* La lecture en base se fait à chaque requête : le titre part tout
-            de suite, la liste arrive dès que la requête est terminée. */}
-        <Suspense
-          fallback={<p className="mt-10 text-slate-500">Chargement des salles…</p>}
-        >
-          <ListeSalles />
-        </Suspense>
-      </div>
+      {/* La lecture en base se fait à chaque requête : le titre part tout
+          de suite, la liste arrive dès que la requête est terminée. */}
+      <Suspense fallback={<p className="mt-10 text-encre-douce">Chargement des salles…</p>}>
+        <ListeSalles />
+      </Suspense>
     </main>
   );
 }
@@ -54,63 +40,22 @@ async function ListeSalles() {
 
   if (salles.length === 0) {
     return (
-      <p className="mt-10 text-slate-600">
+      <p className="mt-10 text-encre-douce">
         Aucune salle n&apos;est disponible pour le moment.
       </p>
     );
   }
 
   return (
-    <ul className="mt-10 grid gap-6 sm:grid-cols-2">
+    <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {salles.map((salle) => (
-        <li
+        <CarteSalle
           key={salle.id}
-          className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-orange-300 hover:shadow-md"
-        >
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-xl font-semibold">
-              {/* Le ::after du lien couvre toute la carte : un clic n'importe
-                  où mène à la fiche, et le lecteur d'écran n'annonce que le nom. */}
-              <Link
-                href={`/salles/${salle.id}`}
-                className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-orange-500"
-              >
-                {salle.nom}
-              </Link>
-            </h2>
-            <p className="shrink-0 text-lg font-semibold text-orange-600">
-              {formatPrix.format(salle.prixHeureCentimes / 100)}
-              <span className="text-sm font-normal text-slate-500">
-                {" "}
-                / heure
-              </span>
-            </p>
-          </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Jusqu&apos;à {salle.capacite} personnes
-          </p>
-          <p className="mt-4 text-slate-700">{salle.description}</p>
-          <ul aria-label="Équipements" className="mt-6 flex flex-wrap gap-2">
-            {salle.equipements.map((equipement) => (
-              <li
-                key={equipement.id}
-                className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
-              >
-                {equipement.nom}
-              </li>
-            ))}
-          </ul>
-          {/* relative z-10 : au-dessus du lien de la carte */}
-          <div className="mt-auto pt-6">
-            <Link
-              href={`/salles/${salle.id}/reserver`}
-              aria-label={`Réserver ${salle.nom}`}
-              className="relative z-10 inline-flex items-center rounded-full bg-orange-600 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
-            >
-              Réserver
-            </Link>
-          </div>
-        </li>
+          salle={salle}
+          equipements={salle.equipements}
+          niveauTitre="h2"
+          sizes={TAILLES_CARTE_SALLE}
+        />
       ))}
     </ul>
   );

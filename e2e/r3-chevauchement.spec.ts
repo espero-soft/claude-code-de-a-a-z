@@ -19,8 +19,11 @@ test.beforeAll(nettoyer);
 test.afterAll(nettoyer);
 
 async function demanderHorizon(page: Page, heureDebut: string, heureFin: string) {
+  // La liste n'a plus de bouton par carte (un seul cuivre par écran) : on
+  // ouvre la fiche, puis « Réserver cette salle ».
   await page.goto("/salles");
-  await page.getByRole("link", { name: "Réserver Horizon" }).click();
+  await page.getByRole("link", { name: "Horizon", exact: true }).click();
+  await page.getByRole("link", { name: "Réserver cette salle" }).click();
   await expect(page.getByLabel("Date")).toBeVisible();
 
   await page.getByLabel("Date").fill(DATE_DEMO);

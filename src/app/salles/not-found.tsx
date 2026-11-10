@@ -1,25 +1,33 @@
-import Link from "next/link";
+import { LienBouton } from "@/components/Bouton";
+import { IconeFleche } from "@/components/icones";
 
 // Affichée pour une salle inconnue ou désactivée : via /salles/introuvable
 // (réécriture du proxy) ou quand la fiche appelle notFound().
+// Maquette 05 : grand « 404 » pâle, titre, texte, bouton avec flèche. Le
+// bouton est marine (principal) : ce n'est pas un achat, le cuivre est
+// réservé à réserver et payer. Le centre ne loue que des salles de réunion.
 export default function SalleIntrouvable() {
   return (
-    <main className="flex-1 bg-slate-50 px-6 py-16 text-slate-900">
-      <div className="mx-auto max-w-3xl">
-        <p className="text-sm font-semibold text-orange-600">Erreur 404</p>
-        <h1 className="mt-2 text-4xl font-bold tracking-tight">
-          Salle introuvable
-        </h1>
-        <p className="mt-4 text-lg text-slate-600">
-          Cette salle n&apos;existe pas ou n&apos;est plus proposée à la
-          location.
-        </p>
-        <Link
-          href="/salles"
-          className="mt-8 inline-flex items-center rounded-full bg-orange-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
+    <main className="mx-auto flex w-full max-w-6xl flex-1 items-center px-4 py-12 sm:px-6 md:py-20">
+      <div className="max-w-xl">
+        <p
+          aria-hidden="true"
+          className="font-titres text-[96px] leading-none font-bold text-bordure md:text-[144px]"
         >
+          404
+        </p>
+        <h1 className="mt-2 text-titre-1 text-marine">Salle introuvable</h1>
+        <span aria-hidden="true" className="mt-4 block h-1 w-16 rounded-full bg-cuivre" />
+        <p className="mt-6 text-lg leading-7 text-encre">
+          Cette salle n&apos;existe pas ou n&apos;est plus proposée à la location.
+        </p>
+        <p className="mt-3 text-lg leading-7 text-encre-douce">
+          Découvrez nos autres salles de réunion.
+        </p>
+        <LienBouton href="/salles" className="mt-8 w-full sm:w-auto">
           Voir toutes les salles
-        </Link>
+          <IconeFleche />
+        </LienBouton>
       </div>
     </main>
   );

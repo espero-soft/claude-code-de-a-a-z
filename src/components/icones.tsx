@@ -49,6 +49,33 @@ export function IconeFleche(props: PropsIcone) {
   );
 }
 
+// Retour (lien « ← Nos salles » de la fiche sur mobile).
+export function IconeRetour(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M19 12H5M11 18l-6-6 6-6" />
+    </Icone>
+  );
+}
+
+// Séparateur du fil d'Ariane.
+export function IconeChevron(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="m9 18 6-6-6-6" />
+    </Icone>
+  );
+}
+
+// Coche simple (liste des équipements d'une salle).
+export function IconeCoche(props: PropsIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M20 6 9 17l-5-5" />
+    </Icone>
+  );
+}
+
 export function IconeInfo(props: PropsIcone) {
   return (
     <Icone {...props}>

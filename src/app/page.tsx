@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { LienBouton } from "@/components/Bouton";
-import { CarteSalle } from "@/components/CarteSalle";
+import { CarteSalle, TAILLES_CARTE_SALLE } from "@/components/CarteSalle";
 import {
   IconeCalendrier,
   IconeCarteBancaire,
@@ -42,10 +42,6 @@ const ETAPES = [
     texte: "Et la salle est à vous.",
   },
 ];
-
-// Largeur affichée des cartes : 1 colonne, puis 2 (sm), puis 4 (lg), dans
-// un conteneur de 72 rem au plus.
-const TAILLES_CARTE = "(min-width: 1024px) 270px, (min-width: 640px) 50vw, 100vw";
 
 export default function Accueil() {
   return (
@@ -135,7 +131,7 @@ async function SallesAccueil() {
   return (
     <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {salles.map((salle) => (
-        <CarteSalle key={salle.id} salle={salle} sizes={TAILLES_CARTE} />
+        <CarteSalle key={salle.id} salle={salle} sizes={TAILLES_CARTE_SALLE} />
       ))}
     </ul>
   );

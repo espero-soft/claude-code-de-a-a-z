@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formaterPrix } from "@/lib/format";
+import { Badge } from "./Badge";
 import { Carte } from "./Carte";
 import { IconeEtiquette, IconeFleche, IconePersonnes } from "./icones";
 import { PhotoSalle } from "./PhotoSalle";
@@ -13,15 +14,23 @@ type SalleAffichee = {
   photo: string | null;
 };
 
+// Largeur affichée des cartes dans une grille d'une colonne, puis 2 (sm),
+// puis 4 (lg), dans un conteneur de 72 rem au plus (accueil et /salles).
+export const TAILLES_CARTE_SALLE =
+  "(min-width: 1024px) 270px, (min-width: 640px) 50vw, 100vw";
+
 // Carte de salle (maquettes 01 et 03) : photo 3:2, nom, extrait de la
 // description, capacité et prix horaire, tous lus en base. Toute la carte
 // mène à la fiche (lien étiré), sans bouton cuivre : un seul par écran.
+// `equipements` (liste des salles, maquette 03) : badges sous la description.
 export function CarteSalle({
   salle,
+  equipements,
   niveauTitre: Titre = "h3",
   sizes,
 }: {
   salle: SalleAffichee;
+  equipements?: { id: string; nom: string }[];
   niveauTitre?: "h2" | "h3";
   sizes: string;
 }) {
@@ -50,6 +59,17 @@ export function CarteSalle({
           </span>
         </div>
         <p className="mt-2 line-clamp-2 text-petit text-encre-douce">{salle.description}</p>
+        {equipements && equipements.length > 0 && (
+          <ul aria-label="Équipements" className="mt-3 flex flex-wrap gap-1.5">
+            {equipements.map((equipement) => (
+              <li key={equipement.id}>
+                <Badge ton="accent" icone={null}>
+                  {equipement.nom}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
         <dl className="mt-auto space-y-1.5 pt-4 text-petit">
           <div className="flex items-center gap-2">
             <dt className="sr-only">Capacité</dt>
