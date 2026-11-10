@@ -21,6 +21,17 @@
         "--headless"
       ],
       "env": {}
+    },
+    "regles-metier": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "tsx",
+        "mcp/regles-metier/index.ts"
+      ],
+      "env": {
+        "DATABASE_URL": "file:./dev.db"
+      }
     }
   }
 }
