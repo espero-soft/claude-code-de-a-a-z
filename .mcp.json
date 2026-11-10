@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "sqlite": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--exclude-newer",
+        "2025-06-01",
+        "mcp-server-sqlite==2025.4.25",
+        "--db-path",
+        "./dev.db"
+      ],
+      "env": {}
+    }
+  }
+}
