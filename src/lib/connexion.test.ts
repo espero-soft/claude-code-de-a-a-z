@@ -114,6 +114,15 @@ describe("cheminDeRetour", () => {
   it("garde un chemin du site", () => {
     expect(cheminDeRetour("/salles/abc/reserver")).toBe("/salles/abc/reserver");
     expect(cheminDeRetour("/aide?x=1")).toBe("/aide?x=1");
+    expect(cheminDeRetour("/aide#contact")).toBe("/aide#contact");
+    expect(cheminDeRetour("/double-authentification?retour=%2Fprofil")).toBe(
+      "/double-authentification?retour=%2Fprofil",
+    );
+  });
+
+  it("renvoie la forme normalisée, celle que suivra le navigateur", () => {
+    expect(cheminDeRetour("/salles/../aide")).toBe("/aide");
+    expect(cheminDeRetour("/%2F%2Fautre.site")).toBe("/%2F%2Fautre.site");
   });
 
   it.each([
@@ -123,11 +132,36 @@ describe("cheminDeRetour", () => {
     "https://autre.site",
     "//autre.site",
     "/\\autre.site",
+    "\\\\autre.site",
     "salles",
     "/connexion",
     "/connexion?retour=/aide",
+    "/connexion#x",
   ])("revient à l'accueil pour %j", (valeur) => {
     expect(cheminDeRetour(valeur)).toBe("/");
+  });
+
+  // Ce que reçoit le serveur pour ?retour=/%09/exemple.com et voisins : le
+  // navigateur retirerait ces caractères et partirait sur exemple.com.
+  it.each([
+    "/\t/exemple.com",
+    "/\n/exemple.com",
+    "/\r/exemple.com",
+    "/\t\n/exemple.com",
+    "/\t\\exemple.com",
+    "\t//exemple.com",
+    "/aide\u0000",
+    "/aide\u007F",
+    "/aide\u0085",
+  ])("refuse un caractère de contrôle : %j", (valeur) => {
+    expect(cheminDeRetour(valeur)).toBe("/");
+  });
+
+  it("les adresses construites à partir du chemin restent sur le site", () => {
+    expect(adresseConnexion("/\t/exemple.com")).toBe("/connexion?retour=%2F");
+    expect(adresseDeuxiemeFacteur("//exemple.com")).toBe(
+      "/double-authentification?retour=%2F",
+    );
   });
 });
 

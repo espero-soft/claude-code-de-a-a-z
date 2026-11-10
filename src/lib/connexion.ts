@@ -109,15 +109,31 @@ export function messageErreurConnexion(erreur: ErreurAuth): MessageErreur {
   }
 }
 
+// Origine fictive servant seulement à analyser un chemin relatif.
+const ORIGINE_ANALYSE = "http://site.invalid";
+// Caractères de contrôle (C0, DEL, C1). Le navigateur retire tabulations et
+// sauts de ligne d'une adresse : « /\t/autre.site » deviendrait
+// « //autre.site », un autre site (prouvé par e2e/redirection-retour.spec.ts).
+const CARACTERE_DE_CONTROLE = /[\u0000-\u001F\u007F-\u009F]/;
+
 // Après la connexion, on revient à la page demandée (?retour=/salles/...),
-// seulement si c'est un chemin de ce site : « //autre.site » ou
-// « https://... » ouvriraient une redirection vers l'extérieur.
+// seulement si c'est une adresse de ce site : « //autre.site »,
+// « https://... », « /\autre.site » ou « /<tabulation>/autre.site »
+// ouvriraient une redirection vers l'extérieur. L'adresse est analysée comme
+// le ferait le navigateur, et c'est sa forme normalisée qui est renvoyée.
 export function cheminDeRetour(valeur: string | string[] | undefined): string {
   if (typeof valeur !== "string") return "/";
-  if (!valeur.startsWith("/") || valeur.startsWith("//") || valeur.includes("\\")) return "/";
+  if (!valeur.startsWith("/") || CARACTERE_DE_CONTROLE.test(valeur)) return "/";
+  let adresse: URL;
+  try {
+    adresse = new URL(valeur, ORIGINE_ANALYSE);
+  } catch {
+    return "/";
+  }
+  if (adresse.origin !== ORIGINE_ANALYSE) return "/";
   // Revenir sur /connexion n'aurait pas de sens.
-  if (valeur === "/connexion" || valeur.startsWith("/connexion?")) return "/";
-  return valeur;
+  if (adresse.pathname === "/connexion") return "/";
+  return `${adresse.pathname}${adresse.search}${adresse.hash}`;
 }
 
 // Page de connexion qui ramène ensuite à `chemin` (page réservée aux comptes,
