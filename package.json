@@ -13,7 +13,8 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
     "revue": "node scripts/revue.mjs",
-    "premier-appel": "tsx scripts/premier-appel.ts"
+    "premier-appel": "tsx scripts/premier-appel.ts",
+    "agent-outil": "tsx scripts/agent-outil.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.7.0",
