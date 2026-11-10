@@ -48,7 +48,7 @@ test("R3 : 11 h à 12 h 30 est refusé, 12 h à 13 h est accepté", async ({ pag
   await expect(
     page.getByRole("heading", { name: "Demande de réservation enregistrée" }),
   ).toBeVisible();
-  await expect(page.getByText("de 12:00 à 13:00")).toBeVisible();
+  await expect(page.getByText("de 12 h à 13 h", { exact: true })).toBeVisible();
   // R5 : 1 h à 40 € de l'heure. Le montant est stocké en centimes (4000) et
   // doit être divisé par 100 à l'affichage, sinon la page montre 4 000,00 €.
   // Intl sépare le nombre et « € » par une espace insécable : d'où le \s.

@@ -1,31 +1,44 @@
 "use client";
 
 import { useActionState } from "react";
+import { Bouton } from "@/components/Bouton";
+import { Encadre } from "@/components/Encadre";
+import { IconeCarteBancaire } from "@/components/icones";
 import { payer, type EtatPaiement } from "./actions";
 
 const etatInitial: EtatPaiement = {};
 
-// Le montant n'est pas transmis : la Server Action le relit en base.
-export function BoutonPayer({ reservationId }: { reservationId: string }) {
+// Le montant affiché (« Payer 60,00 € », charte) est un simple libellé : la
+// Server Action ne le reçoit pas et relit le montant en base (R5).
+export function BoutonPayer({
+  reservationId,
+  montant,
+}: {
+  reservationId: string;
+  montant: string;
+}) {
   const [etat, action, enCours] = useActionState(
     payer.bind(null, reservationId),
     etatInitial,
   );
 
   return (
-    <form action={action} className="mt-8 space-y-4">
+    <form action={action} className="mt-6 space-y-4">
       {etat.erreur && (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <Encadre ton="erreur" role="alert">
           {etat.erreur}
-        </p>
+        </Encadre>
       )}
-      <button
+      <Bouton
         type="submit"
-        disabled={enCours}
-        className="inline-flex items-center rounded-full bg-orange-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-wait disabled:opacity-60"
+        variante="action"
+        pleineLargeur
+        enCours={enCours}
+        libelleEnCours="Redirection vers le paiement…"
       >
-        {enCours ? "Redirection vers le paiement…" : "Payer"}
-      </button>
+        <IconeCarteBancaire />
+        Payer {montant}
+      </Bouton>
     </form>
   );
 }

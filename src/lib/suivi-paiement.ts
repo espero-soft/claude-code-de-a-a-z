@@ -15,7 +15,9 @@ import { obtenirStripe } from "@/lib/stripe";
 export function lireReservation(id: string) {
   return prisma.reservation.findUnique({
     where: { id },
-    include: { salle: { select: { id: true, nom: true } } },
+    include: {
+      salle: { select: { id: true, nom: true, photo: true, capacite: true, active: true } },
+    },
   });
 }
 

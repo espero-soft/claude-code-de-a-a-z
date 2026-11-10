@@ -2,26 +2,40 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
+import { BadgeStatut } from "@/components/Badge";
+import { LienBouton } from "@/components/Bouton";
+import { Carte } from "@/components/Carte";
+import { Encadre } from "@/components/Encadre";
+import {
+  IconeCalendrier,
+  IconeCoche,
+  IconeEnveloppe,
+  IconeFermer,
+  IconeFleche,
+  IconeHorloge,
+  IconeMallette,
+  IconePersonne,
+  IconePersonnes,
+  IconeSablier,
+} from "@/components/icones";
+import { PhotoSalle } from "@/components/PhotoSalle";
 import { DELAI_PAIEMENT_MS } from "@/lib/expiration";
+import { formaterDuree, formaterHeure, formaterPlage, formaterPrix } from "@/lib/format";
+import { motifAnnulation, type MotifAnnulation } from "@/lib/motif-annulation";
 import { FUSEAU_CENTRE } from "@/lib/reservation";
+import { obtenirStripe } from "@/lib/stripe";
 import {
   actualiserReservation,
   lireReservation,
   type ReservationLue,
 } from "@/lib/suivi-paiement";
 import { BoutonPayer } from "./BoutonPayer";
+import { DelaiRestant } from "./DelaiRestant";
 
 export const metadata: Metadata = {
   title: "Votre réservation",
 };
-
-const formatPrix = new Intl.NumberFormat("fr-FR", {
-  style: "currency",
-  currency: "EUR",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
 const formatDate = new Intl.DateTimeFormat("fr-FR", {
   timeZone: FUSEAU_CENTRE,
@@ -30,38 +44,6 @@ const formatDate = new Intl.DateTimeFormat("fr-FR", {
   month: "long",
   year: "numeric",
 });
-
-const formatHeure = new Intl.DateTimeFormat("fr-FR", {
-  timeZone: FUSEAU_CENTRE,
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-const libelleStatut = {
-  EN_ATTENTE: "En attente de paiement",
-  CONFIRMEE: "Confirmée",
-  ANNULEE: "Annulée",
-} as const;
-
-// Titre et explication affichés selon le statut.
-const entete = {
-  EN_ATTENTE: {
-    surtitre: "Merci !",
-    titre: "Demande de réservation enregistrée",
-    texte: "Votre réservation sera confirmée dès réception du paiement.",
-  },
-  CONFIRMEE: {
-    surtitre: "Paiement reçu",
-    titre: "Réservation confirmée",
-    texte: "Votre paiement a bien été reçu : la salle vous est réservée.",
-  },
-  ANNULEE: {
-    surtitre: "Réservation annulée",
-    titre: "Réservation annulée",
-    texte:
-      "Le paiement n'a pas été reçu dans les 15 minutes, ou le créneau a été confirmé entre-temps pour un autre client. Si un paiement a été prélevé, il vous est remboursé.",
-  },
-} as const;
 
 // Règle R6 : à la consultation, une réservation en attente depuis plus de
 // 15 minutes est annulée, et un paiement revenu de Stripe est vérifié puis
@@ -78,97 +60,360 @@ async function chargerReservation(
   }
 }
 
-export default function ConfirmationPage({
-  params,
-}: PageProps<"/reservations/[id]">) {
+// Réservation annulée : relit sa session Checkout (lecture seule, rien n'est
+// modifié) pour savoir si un paiement a été encaissé puis remboursé.
+async function chargerMotif(reservation: ReservationLue): Promise<MotifAnnulation> {
+  if (!reservation.stripeSessionId) return motifAnnulation(reservation, null);
+  try {
+    const session = await obtenirStripe().checkout.sessions.retrieve(
+      reservation.stripeSessionId,
+      { expand: ["payment_intent.latest_charge"] },
+    );
+    return motifAnnulation(reservation, session);
+  } catch (erreur) {
+    console.error("Lecture du paiement impossible", erreur);
+    return motifAnnulation(reservation, "indisponible");
+  }
+}
+
+export default function ReservationPage({ params }: PageProps<"/reservations/[id]">) {
   return (
-    <main className="flex-1 bg-slate-50 px-6 py-16 text-slate-900">
-      <div className="mx-auto max-w-2xl">
-        <Suspense
-          fallback={<p className="text-slate-500">Chargement de la réservation…</p>}
-        >
-          {params.then(({ id }) => (
-            <Confirmation id={id} />
-          ))}
-        </Suspense>
-      </div>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 md:py-12">
+      <Suspense fallback={<p className="text-encre-douce">Chargement de la réservation…</p>}>
+        {params.then(({ id }) => (
+          <SuiviReservation id={id} />
+        ))}
+      </Suspense>
     </main>
   );
 }
 
-async function Confirmation({ id }: { id: string }) {
+async function SuiviReservation({ id }: { id: string }) {
   await connection();
   const { reservation, verifiee } = await chargerReservation(id);
   if (!reservation) {
     notFound();
   }
-  const { surtitre, titre, texte } = entete[reservation.statut];
-  const payerAvant = new Date(reservation.createdAt.getTime() + DELAI_PAIEMENT_MS);
 
+  if (reservation.statut === "EN_ATTENTE") {
+    return <EnAttente reservation={reservation} verifiee={verifiee} />;
+  }
+  if (reservation.statut === "CONFIRMEE") {
+    return <Confirmee reservation={reservation} />;
+  }
+  return <Annulee reservation={reservation} motif={await chargerMotif(reservation)} />;
+}
+
+// --- Les trois statuts (maquettes 03 et 05, plan de refonte) ---
+
+function EnAttente({
+  reservation,
+  verifiee,
+}: {
+  reservation: ReservationLue;
+  verifiee: boolean;
+}) {
+  // Heure limite exacte (R6 : 15 minutes après la demande), et non un compte
+  // à rebours de 15 minutes qui repartirait à chaque rechargement.
+  const limite = reservation.createdAt.getTime() + DELAI_PAIEMENT_MS;
+  const montant = formaterPrix(reservation.montantTotalCentimes);
+
+  return (
+    <article>
+      <EnTeteStatut
+        icone={<IconeSablier className="size-8" />}
+        ton="bg-attente/10 text-attente ring-attente/30"
+        titre="Demande de réservation enregistrée"
+        statut="EN_ATTENTE"
+      >
+        Votre réservation sera confirmée dès réception du paiement.
+      </EnTeteStatut>
+
+      {verifiee ? (
+        <Encadre ton="alerte" titre={`À payer avant ${formaterHeure(new Date(limite))}`} className="mt-8">
+          Passé ce délai, la réservation est annulée automatiquement.{" "}
+          <DelaiRestant limite={limite} />
+        </Encadre>
+      ) : (
+        <PaiementNonVerifie />
+      )}
+
+      <Detail reservation={reservation}>
+        <Montant reservation={reservation} libelle="Montant à payer" />
+      </Detail>
+
+      <BoutonPayer reservationId={reservation.id} montant={montant} />
+      <p className="mt-3 text-center text-petit text-encre-douce">
+        Paiement par carte sur la page sécurisée de Stripe.
+      </p>
+    </article>
+  );
+}
+
+function Confirmee({ reservation }: { reservation: ReservationLue }) {
+  return (
+    <article>
+      <EnTeteStatut
+        icone={<IconeCoche className="size-8" />}
+        ton="bg-succes/10 text-succes ring-succes/30"
+        titre="Réservation confirmée"
+        statut="CONFIRMEE"
+      >
+        Votre paiement a bien été reçu : la salle vous est réservée.
+      </EnTeteStatut>
+
+      <Detail
+        reservation={reservation}
+        photo={
+          <PhotoSalle
+            photo={reservation.salle.photo}
+            nom={reservation.salle.nom}
+            sizes="(min-width: 768px) 260px, 100vw"
+            enPriorite
+            className="aspect-[3/2] rounded-arrondi-m"
+          />
+        }
+      >
+        <Montant reservation={reservation} libelle="Montant payé" />
+      </Detail>
+
+      <div className="mt-8 flex justify-center">
+        <LienBouton href="/salles" className="w-full sm:w-auto">
+          Voir toutes les salles
+          <IconeFleche />
+        </LienBouton>
+      </div>
+    </article>
+  );
+}
+
+function Annulee({
+  reservation,
+  motif,
+}: {
+  reservation: ReservationLue;
+  motif: MotifAnnulation;
+}) {
+  // Une salle retirée entre-temps n'a plus de formulaire (404) : on renvoie
+  // alors vers la liste.
+  const lien = reservation.salle.active
+    ? { href: `/salles/${reservation.salle.id}/reserver`, texte: "Choisir un autre créneau" }
+    : { href: "/salles", texte: "Voir toutes les salles" };
+
+  return (
+    <article>
+      <EnTeteStatut
+        icone={<IconeFermer className="size-8" />}
+        ton="bg-erreur/10 text-erreur ring-erreur/30"
+        titre="Réservation annulée"
+        statut="ANNULEE"
+      >
+        <ExplicationAnnulation motif={motif} reservation={reservation} />
+      </EnTeteStatut>
+
+      <Detail reservation={reservation}>
+        <Montant reservation={reservation} libelle="Montant de la réservation" attenue />
+      </Detail>
+
+      <div className="mt-8 flex flex-col items-center gap-4">
+        <LienBouton href={lien.href} variante="action" className="w-full sm:w-auto">
+          {lien.texte}
+          <IconeFleche />
+        </LienBouton>
+        <Link
+          href="/aide"
+          className="inline-flex min-h-11 items-center rounded-arrondi-s font-semibold text-marine underline underline-offset-4 hover:text-marine-fonce"
+        >
+          Consulter les règles de réservation
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+// Explication fondée sur le motif réel : rien n'est promis (ni e-mail, ni
+// « aucun montant débité » quand un paiement a été encaissé puis remboursé).
+function ExplicationAnnulation({
+  motif,
+  reservation,
+}: {
+  motif: MotifAnnulation;
+  reservation: ReservationLue;
+}) {
+  if (motif.motif === "delai-depasse") {
+    return (
+      <>
+        Le paiement n&apos;a pas été reçu dans les 15 minutes qui ont suivi votre demande :
+        la réservation a été annulée automatiquement. Aucun paiement n&apos;a été encaissé.
+      </>
+    );
+  }
+
+  if (motif.motif === "inconnu") {
+    return (
+      <>
+        Le paiement n&apos;a pas été reçu dans les 15 minutes, ou le créneau a été
+        confirmé entre-temps pour un autre client. Si un paiement a été prélevé, il vous
+        est remboursé.
+      </>
+    );
+  }
+
+  const paye = formaterPrix(motif.montantPayeCentimes);
+  const cause = {
+    "paiement-tardif":
+      "Votre paiement est arrivé après le délai de 15 minutes qui suivait votre demande.",
+    "creneau-pris": "Pendant votre paiement, ce créneau a été confirmé pour un autre client.",
+    "montant-different": `Le montant payé (${paye}) ne correspondait pas à celui de la réservation (${formaterPrix(reservation.montantTotalCentimes)}).`,
+  };
+  return (
+    <>
+      {motif.cause ? cause[motif.cause] : "Votre paiement n'a pas pu être accepté."} La
+      réservation a été annulée et les {paye} payés vous sont remboursés sur la carte
+      utilisée.
+    </>
+  );
+}
+
+function PaiementNonVerifie() {
+  return (
+    <Encadre ton="alerte" role="status" className="mt-8">
+      Le paiement n&apos;a pas pu être vérifié pour l&apos;instant. Rechargez la page dans
+      quelques instants.
+    </Encadre>
+  );
+}
+
+// --- Éléments communs ---
+
+// Icône ronde, titre centré, badge de statut (mot écrit) et explication.
+function EnTeteStatut({
+  icone,
+  ton,
+  titre,
+  statut,
+  children,
+}: {
+  icone: ReactNode;
+  ton: string;
+  titre: string;
+  statut: ReservationLue["statut"];
+  children: ReactNode;
+}) {
+  return (
+    <header className="flex flex-col items-center text-center">
+      <span
+        aria-hidden="true"
+        className={`flex size-16 items-center justify-center rounded-full ring-2 ${ton}`}
+      >
+        {icone}
+      </span>
+      <h1 className="mt-5 text-titre-1 text-marine">{titre}</h1>
+      <div className="mt-4">
+        <BadgeStatut statut={statut} />
+      </div>
+      <p className="mt-4 max-w-xl text-encre-douce">{children}</p>
+    </header>
+  );
+}
+
+// Carte « Détail de la réservation » : informations à gauche, montant (et
+// photo pour une réservation confirmée) à droite ; empilé sur mobile.
+function Detail({
+  reservation,
+  photo,
+  children,
+}: {
+  reservation: ReservationLue;
+  photo?: ReactNode;
+  children: ReactNode;
+}) {
   // Seuls les textes générés prennent une majuscule initiale : le nom et
   // l'e-mail saisis par le client s'affichent tels quels.
   const lignes = [
-    { libelle: "Salle", valeur: reservation.salle.nom },
+    { icone: <IconeMallette />, libelle: "Salle", valeur: reservation.salle.nom },
     {
+      icone: <IconeCalendrier />,
       libelle: "Date",
       valeur: formatDate.format(reservation.debut),
       majuscule: true,
     },
     {
+      icone: <IconeHorloge />,
       libelle: "Horaire",
-      valeur: `de ${formatHeure.format(reservation.debut)} à ${formatHeure.format(reservation.fin)}`,
+      valeur: formaterPlage(reservation.debut, reservation.fin),
       majuscule: true,
     },
     {
-      libelle: "Montant",
-      valeur: formatPrix.format(reservation.montantTotalCentimes / 100),
+      icone: <IconePersonnes />,
+      libelle: "Capacité",
+      valeur: `Jusqu'à ${reservation.salle.capacite} personnes`,
     },
-    { libelle: "Statut", valeur: libelleStatut[reservation.statut] },
-    { libelle: "Nom", valeur: reservation.nomClient },
-    { libelle: "E-mail", valeur: reservation.emailClient },
+    { icone: <IconePersonne />, libelle: "Nom", valeur: reservation.nomClient },
+    { icone: <IconeEnveloppe />, libelle: "E-mail", valeur: reservation.emailClient },
   ];
 
   return (
-    <article>
-      <p className="text-sm font-semibold text-orange-600">{surtitre}</p>
-      <h1 className="mt-2 text-4xl font-bold tracking-tight">{titre}</h1>
-      <p className="mt-4 text-lg text-slate-600">{texte}</p>
-      {reservation.statut === "EN_ATTENTE" && (
-        <p className="mt-2 text-slate-600">
-          À régler avant {formatHeure.format(payerAvant)}, sans quoi la réservation
-          sera annulée.
-        </p>
-      )}
-      {!verifiee && (
-        <p role="status" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          Le paiement n&apos;a pas pu être vérifié pour l&apos;instant. Rechargez la
-          page dans quelques instants.
-        </p>
-      )}
+    <Carte as="section" className="mt-8">
+      <h2 className="text-titre-3 text-marine">
+        Détail de la réservation
+      </h2>
+      <div className="mt-4 grid gap-6 md:grid-cols-[minmax(0,1fr)_15rem]">
+        <dl className="space-y-3">
+          {lignes.map(({ icone, libelle, valeur, majuscule }) => (
+            <div key={libelle} className="flex items-start gap-3">
+              <span className="mt-0.5 shrink-0 text-encre-douce">{icone}</span>
+              <div className="min-w-0 sm:flex sm:gap-2">
+                <dt className="text-petit text-encre-douce sm:w-20 sm:shrink-0 sm:pt-0.5">
+                  {libelle}
+                </dt>
+                <dd
+                  className={`font-semibold break-words ${majuscule ? "first-letter:uppercase" : ""}`}
+                >
+                  {valeur}
+                </dd>
+              </div>
+            </div>
+          ))}
+        </dl>
+        <div className="flex flex-col gap-4 border-t border-bordure pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
+          {photo}
+          {children}
+        </div>
+      </div>
+    </Carte>
+  );
+}
 
-      <dl className="mt-8 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white px-6 shadow-sm">
-        {lignes.map(({ libelle, valeur, majuscule }) => (
-          <div key={libelle} className="flex justify-between gap-4 py-4">
-            <dt className="text-slate-500">{libelle}</dt>
-            <dd
-              className={`text-right font-medium ${majuscule ? "first-letter:uppercase" : ""}`}
-            >
-              {valeur}
-            </dd>
-          </div>
-        ))}
-      </dl>
+// Montant lu en base (R5), avec son calcul. Le prix horaire est déduit du
+// montant et de la durée, pour rester juste si le tarif de la salle change
+// après la réservation.
+function Montant({
+  reservation,
+  libelle,
+  attenue = false,
+}: {
+  reservation: ReservationLue;
+  libelle: string;
+  // Réservation annulée : montant en encre, le cuivre invite à l'achat.
+  attenue?: boolean;
+}) {
+  const minutes = Math.round(
+    (reservation.fin.getTime() - reservation.debut.getTime()) / 60_000,
+  );
+  const prixHeure = Math.round((reservation.montantTotalCentimes * 60) / minutes);
 
-      {reservation.statut === "EN_ATTENTE" ? (
-        <BoutonPayer reservationId={reservation.id} />
-      ) : (
-        <Link
-          href="/salles"
-          className="mt-8 inline-flex items-center rounded-full bg-orange-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
-        >
-          Voir toutes les salles
-        </Link>
-      )}
-    </article>
+  return (
+    <div>
+      <p className="text-petit text-encre-douce">{libelle}</p>
+      <p
+        className={`mt-1 font-titres text-titre-2 ${attenue ? "text-encre" : "text-cuivre"}`}
+      >
+        {formaterPrix(reservation.montantTotalCentimes)}
+      </p>
+      <p className="mt-1 text-petit text-encre-douce">
+        {`${formaterPrix(prixHeure)} / heure × ${formaterDuree(minutes)}`}
+      </p>
+    </div>
   );
 }
