@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache, Suspense } from "react";
 import { Carte } from "@/components/Carte";
 import { Encadre } from "@/components/Encadre";
 import { IconeEtiquette, IconePersonnes, IconeRetour } from "@/components/icones";
 import { PhotoSalle } from "@/components/PhotoSalle";
+import { utilisateurAvec } from "@/lib/acces";
+import { adresseConnexion } from "@/lib/connexion";
 import { formaterPrix } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { FUSEAU_CENTRE } from "@/lib/reservation";
@@ -57,6 +59,11 @@ async function Reservation({ id }: { id: string }) {
   // Le proxy a déjà répondu 404 pour une salle inconnue (voir src/proxy.ts).
   if (!salle) {
     notFound();
+  }
+  // Réserver demande un compte : la réservation lui sera rattachée. Le proxy
+  // ne regarde que la présence d'un cookie ; l'action reserver revérifie.
+  if (!(await utilisateurAvec("reserver"))) {
+    redirect(adresseConnexion(`/salles/${salle.id}/reserver`));
   }
 
   return (

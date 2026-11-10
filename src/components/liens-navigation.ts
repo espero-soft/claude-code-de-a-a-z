@@ -1,15 +1,15 @@
-import { adminDisponible } from "@/lib/admin-tickets";
-
 // Liens de la navigation, partagés par l'en-tête et le pied de page.
 // Ajouter un écran à la navigation : une ligne dans ce tableau.
-// L'administration n'existe qu'en développement (pas de connexion) : son lien
-// n'est pas affiché en production, où la page répond 404.
 export const LIENS = [
   { href: "/", libelle: "Accueil" },
   { href: "/salles", libelle: "Nos salles" },
   { href: "/aide", libelle: "Aide" },
-  ...(adminDisponible() ? [{ href: "/admin/tickets", libelle: "Tickets" }] : []),
 ];
+
+// Lien réservé au personnel (employé, administrateur), ajouté dans l'en-tête
+// par ZoneCompte selon le rôle lu côté serveur. Simple confort d'affichage :
+// la page et ses actions revérifient le rôle.
+export const LIEN_ADMINISTRATION = { href: "/admin/tickets", libelle: "Tickets" };
 
 // Actif sur la page elle-même, et sur ses sous-routes (sauf l'accueil) :
 // « Nos salles » reste actif sur /salles/[id] et /salles/[id]/reserver.

@@ -5,6 +5,7 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { envoyerCourriel } from "@/lib/courriel";
 import { gardeConnexion, ROUTES_CODE_FERMEES } from "@/lib/garde-connexion";
 import { prisma } from "@/lib/prisma";
+import { ROLE_PAR_DEFAUT } from "@/lib/roles";
 
 // Authentification sans mot de passe (décision du module 12, voir SECURITE.md) :
 // un seul écran « Connexion » ; on saisit son e-mail, on reçoit un code à
@@ -19,6 +20,20 @@ export const auth = betterAuth({
   // Routes de code inutilisées fermées (404) : elles trahissaient l'existence
   // d'un compte (voir garde-connexion.ts).
   disabledPaths: ROUTES_CODE_FERMEES,
+  user: {
+    additionalFields: {
+      // Rôle du compte (src/lib/roles.ts) : CLIENT à la création, EMPLOYE ou
+      // ADMIN attribué côté serveur seulement (`npm run admin:creer`).
+      // input: false : ni l'inscription ni /update-user n'acceptent ce champ
+      // venant du navigateur.
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: ROLE_PAR_DEFAUT,
+        input: false,
+      },
+    },
+  },
   rateLimit: {
     // Compteurs en base plutôt qu'en mémoire : ils survivent à un redémarrage.
     // Actif en production seulement (défaut de Better Auth). Limite par IP,

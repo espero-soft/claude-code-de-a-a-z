@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { adminDisponible } from "@/lib/admin-tickets";
+import { utilisateurAvec } from "@/lib/acces";
 import { prisma } from "@/lib/prisma";
 
 export type EtatValidation = { erreur?: string };
@@ -10,9 +10,9 @@ export type EtatValidation = { erreur?: string };
 // envoyé au client ; seul le statut change en base.
 // L'état précédent passé par useActionState n'est pas utile : non déclaré.
 export async function validerBrouillon(ticketId: string): Promise<EtatValidation> {
-  // Une Server Action reste appelable en POST même quand la page répond 404 :
-  // le garde est vérifié ici aussi.
-  if (!adminDisponible()) {
+  // Une Server Action reste appelable en POST sans passer par la page (ni par
+  // le proxy, qui ne regarde que le cookie) : session et rôle vérifiés ici.
+  if (!(await utilisateurAvec("tickets"))) {
     return { erreur: "Action indisponible." };
   }
 

@@ -4,6 +4,7 @@
 // pas importer.
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
+import { DOMAINE_ROLES } from "./roles-exemple";
 
 // Même adresse que dans les tests (*.spec.ts).
 const EMAIL_TEST = "playwright@example.com";
@@ -20,6 +21,21 @@ async function main() {
   await prisma.account.deleteMany({ where: { user: { email: { endsWith: DOMAINE_ATTAQUES } } } });
   await prisma.user.deleteMany({ where: { email: { endsWith: DOMAINE_ATTAQUES } } });
   await prisma.verification.deleteMany({ where: { identifier: { endsWith: DOMAINE_ATTAQUES } } });
+
+  // Comptes des rôles (e2e/comptes-roles.ts) et leurs réservations.
+  await prisma.limiteConnexion.deleteMany({ where: { cle: { endsWith: DOMAINE_ROLES } } });
+  await prisma.reservation.deleteMany({
+    where: {
+      OR: [
+        { emailClient: { endsWith: DOMAINE_ROLES } },
+        { utilisateur: { email: { endsWith: DOMAINE_ROLES } } },
+      ],
+    },
+  });
+  await prisma.session.deleteMany({ where: { user: { email: { endsWith: DOMAINE_ROLES } } } });
+  await prisma.account.deleteMany({ where: { user: { email: { endsWith: DOMAINE_ROLES } } } });
+  await prisma.user.deleteMany({ where: { email: { endsWith: DOMAINE_ROLES } } });
+  await prisma.verification.deleteMany({ where: { identifier: { endsWith: DOMAINE_ROLES } } });
 
   await prisma.ticket.deleteMany({ where: { email: EMAIL_TEST } });
   await prisma.reservation.deleteMany({ where: { emailClient: EMAIL_TEST } });

@@ -54,8 +54,14 @@ model Reservation {
   stripeSessionId      String?           @unique
   createdAt            DateTime          @default(now())
   tickets              Ticket[]
+  // Compte titulaire (module 12) : seul lui, l'employé et l'administrateur
+  // voient la réservation. Null pour les réservations d'avant les comptes.
+  // Le compte supprimé, la réservation reste, sans titulaire.
+  utilisateurId        String?
+  utilisateur          User?             @relation(fields: [utilisateurId], references: [id], onDelete: SetNull)
 
   @@index([salleId, debut])
+  @@index([utilisateurId])
 }
 
 // Tickets du support (module 10) : message d'un client, trié par le modèle
@@ -118,6 +124,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  // Champ ajouté par `user.additionalFields` (src/lib/auth.ts) : CLIENT,
+  // EMPLOYE ou ADMIN, relu par lireRole (src/lib/roles.ts).
+  role          String?   @default("CLIENT")
+  reservations  Reservation[]
 
   @@unique([email])
   @@map("user")

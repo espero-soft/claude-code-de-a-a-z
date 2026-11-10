@@ -4,6 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { dateDemo } from "../src/lib/date-demo";
 import { expect, test, type Page } from "@playwright/test";
+import { seConnecter } from "./session";
 
 const DATE_DEMO = dateDemo();
 const EMAIL_TEST = "playwright@example.com"; // voir e2e/nettoyage.ts
@@ -36,6 +37,8 @@ async function demanderHorizon(page: Page, heureDebut: string, heureFin: string)
 }
 
 test("R3 : 11 h à 12 h 30 est refusé, 12 h à 13 h est accepté", async ({ page }) => {
+  // Réserver demande un compte (module 12).
+  await seConnecter(page, EMAIL_TEST);
   // Chevauche 10 h à 12 h : refusé, on reste sur le formulaire.
   await demanderHorizon(page, "11:00", "12:30");
   // Filtre par texte : Next ajoute sa propre zone role="alert" (annonce de route).

@@ -110,6 +110,10 @@ const formatHeure = new Intl.DateTimeFormat("fr-FR", {
   timeStyle: "short",
 });
 
+// Aussi la réponse à qui n'a pas le droit de payer la réservation : on ne
+// confirme pas qu'elle existe (src/app/reservations/[id]/actions.ts).
+export const RESERVATION_INEXISTANTE = "Cette réservation n'existe pas.";
+
 export type ResultatOuverture =
   // URL où envoyer le client : la page Stripe Checkout, ou la page de la
   // réservation si elle n'est plus à payer.
@@ -125,7 +129,7 @@ export async function ouvrirPaiement(
   maintenant: Date,
 ): Promise<ResultatOuverture> {
   const { reservation, session } = await actualiserReservation(id, maintenant);
-  if (!reservation) return { ok: false, erreur: "Cette réservation n'existe pas." };
+  if (!reservation) return { ok: false, erreur: RESERVATION_INEXISTANTE };
 
   const page = `/reservations/${reservation.id}`;
   // Confirmée, ou annulée à l'instant par R6 : la page affiche le nouveau statut.

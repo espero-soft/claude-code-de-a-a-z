@@ -194,10 +194,10 @@ Pièges rencontrés :
 1. ~~Installer Better Auth, générer et migrer le schéma, créer la route `/api/auth/[...all]`.~~ Fait (section 8).
 2. Écrire la couche d'accès `src/lib/acces.ts` (fonctions pures plus lecture de session) et ses tests Vitest.
 3. Écran `/connexion` (e-mail, puis code), avec le client `better-auth/react` et l'extension cliente `emailOTPClient`.
-4. Ajouter `Reservation.utilisateurId`, protéger `reserver`, `payer` et `/reservations/[id]`, créer `/compte/reservations`. Le nom et l'e-mail de la réservation viennent du compte.
-5. Rôles (extension `admin` ou champ `role`) ; remplacer `adminDisponible()` par `exigerRole("EMPLOYE")` sur `/admin/tickets` et `validerBrouillon` ; afficher le lien « Tickets » selon le rôle dans `liens-navigation.ts`.
+4. ~~Ajouter `Reservation.utilisateurId`, protéger `reserver`, `payer` et `/reservations/[id]`.~~ Fait (section 11). Reste : créer `/compte/reservations` ; faire venir le nom et l'e-mail de la réservation du compte (le formulaire les demande encore).
+5. ~~Rôles ; remplacer `adminDisponible()` sur `/admin/tickets` et `validerBrouillon` ; lien « Tickets » selon le rôle.~~ Fait (section 11).
 6. TOTP obligatoire pour employés et admins (section 7.3).
-7. Tests Playwright (`e2e/`) : un visiteur est redirigé, un client ne voit pas la réservation d'un autre (404), un client n'ouvre pas `/admin/tickets`, et l'action `validerBrouillon` appelée sans rôle est refusée.
+7. ~~Tests : un visiteur est redirigé, un client ne voit pas la réservation d'un autre (404), un client n'ouvre pas `/admin/tickets`, et l'action `validerBrouillon` appelée sans rôle est refusée.~~ Fait (section 11).
 8. Mettre à jour `CLAUDE.md` (architecture, nouvelles variables d'environnement) et la section « Sécurité ».
 
 ## 10. Attaques contre la connexion par code (module 12)
@@ -227,3 +227,31 @@ Ce que l'on accepte, et ce qui reste à faire :
 - **Blocage ciblé.** Un pirate peut épuiser les essais d'une victime : elle ne peut plus se connecter pendant au plus une heure. On le préfère à la prise de contrôle du compte.
 - **IP falsifiable en production.** Better Auth croit un `X-Forwarded-For` à une seule valeur, et `next start` le transmet tel quel. La limite par IP ne protège donc rien tant que le déploiement ne la fiabilise pas : mettre l'application derrière un proxy qui **réécrit** cet en-tête (ou ajoute l'IP réelle en dernier, avec `advanced.ipAddress.trustedProxies`). Sinon, un pirate peut toujours faire envoyer des codes à **beaucoup d'adresses différentes** (3 chacune). À trancher au choix de l'hébergement.
 - Vérifié et écarté : sur une même machine, tous les visiteurs partagent le compteur d'IP `::1`. Ce n'est pas un compteur commun à tout le monde en production : Next.js renseigne l'IP de la connexion quand l'en-tête manque.
+
+## 11. Rôles et contrôle d'accès (module 12)
+
+**Choix : un champ `role` plutôt que l'extension `admin` de Better Auth.** L'extension ajoute des routes HTTP (`/admin/set-role`, `/admin/impersonate-user`...) : autant de surface d'attaque pour des écrans que nous n'avons pas encore. Un champ `user.role` déclaré dans `additionalFields` avec `input: false` suffit : la bibliothèque refuse qu'il vienne du navigateur (inscription comme `/update-user`).
+
+| Capacité | Client | Employé | Admin |
+|---|:-:|:-:|:-:|
+| Réserver, voir et payer **ses** réservations | ✅ | ✅ | ✅ |
+| Voir les réservations de tous (`/reservations/[id]`) | ❌ | ✅ | ✅ |
+| Tickets du support (`/admin/tickets`, `validerBrouillon`) | ❌ | ✅ | ✅ |
+| Chiffres (à venir) | ❌ | ❌ | ✅ |
+| Comptes et rôles (à venir) | ❌ | ❌ | ✅ |
+
+Le personnel **consulte** une réservation mais ne la **paie** pas à la place du client. Une réservation créée avant les comptes (`utilisateurId` vide) n'est visible que du personnel.
+
+Trois couches, chacune suffisante pour la sécurité des données :
+
+1. **Règles pures** (`src/lib/roles.ts`, `roles.test.ts`) : refus par défaut ; un rôle inconnu vaut `CLIENT`.
+2. **Couche d'accès** (`src/lib/acces.ts`) : session lue par Better Auth, **rôle relu en base** à chaque requête (un rôle retiré prend effet aussitôt). Appelée par chaque page **et par chaque Server Action** (`reserver`, `payer`, `validerBrouillon`) : une action est un point d'entrée HTTP public. Les tests `src/app/**/actions.test.ts` appellent les actions directement, sans page ni proxy.
+3. **Proxy** (`src/proxy.ts`) : confort seulement. Visiteur sans cookie → `/connexion?retour=…` (vrai 307) ; client sur `/admin/**` → vrai 404. Le retirer n'ouvre rien.
+
+**Fuite de `/reservations/[id]` corrigée.** Visiteur : renvoyé vers la connexion, que la réservation existe ou non. Compte connecté qui n'est ni titulaire ni du personnel : `notFound()`, par le même chemin qu'un identifiant inexistant (le test compare code HTTP, titre et texte des deux pages). Le contrôle passe **avant** `actualiserReservation`, qui peut écrire (confirmer, annuler, rembourser).
+
+**Premier administrateur** : `npm run admin:creer -- <e-mail>` (ou `ADMIN_EMAIL`). Aucune adresse ni aucun secret dans le code ; pas de mot de passe : l'administrateur se connecte avec un code reçu à cette adresse, ce qui prouve qu'il la possède. La commande refuse s'il existe déjà un autre administrateur (`decisionPremierAdmin`, testée) : les suivants seront nommés depuis l'application (`/admin/utilisateurs`, à venir).
+
+Prouvé par : `src/lib/roles.test.ts`, `src/lib/connexion.test.ts` (`adresseConnexion`), `src/app/**/actions.test.ts`, `e2e/fuite-reservation.spec.ts` (plus de `test.fail`), `e2e/roles.spec.ts` (dont : un client qui envoie `role: "ADMIN"` à `/update-user` reste client). Vérifié aussi qu'en retirant le contrôle de la page ou la garde de `validerBrouillon`, ces tests échouent.
+
+Reste à faire : TOTP obligatoire pour le personnel (section 7.3) ; traçabilité de qui valide un ticket ; nom et e-mail de la réservation tirés du compte.

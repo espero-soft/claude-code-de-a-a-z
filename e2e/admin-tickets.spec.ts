@@ -1,11 +1,13 @@
-// Écran d'administration des tickets du support : on y arrive par la
-// navigation (en développement seulement), les tickets les plus urgents sont en
+// Écran d'administration des tickets du support : un employé y arrive par la
+// navigation (accès par rôle : voir aussi e2e/roles.spec.ts), les tickets les plus urgents sont en
 // tête, le badge « Conseiller requis » signale un ticket à transmettre, et
 // « Valider le brouillon » passe le ticket en VALIDE sans rien envoyer.
 // Les tickets de test sont créés par e2e/tickets-exemple.ts (sans appel à
 // l'API Claude) et retirés par e2e/nettoyage.ts.
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
+import { COMPTES_ROLES } from "./roles-exemple";
+import { seConnecter } from "./session";
 
 const RESUME_HAUTE = "Test Playwright : double débit signalé.";
 const RESUME_BASSE = "Test Playwright : question sur les horaires.";
@@ -16,10 +18,12 @@ function nettoyer() {
 test.beforeAll(() => {
   nettoyer();
   execFileSync("npx", ["tsx", "e2e/tickets-exemple.ts"], { stdio: "inherit" });
+  execFileSync("npx", ["tsx", "e2e/comptes-roles.ts"], { stdio: "ignore" });
 });
 test.afterAll(nettoyer);
 
 test("liste les tickets par urgence et valide un brouillon", async ({ page }) => {
+  await seConnecter(page, COMPTES_ROLES.employe.email);
   await page.goto("/");
   const navigation = page.getByRole("navigation", { name: "Navigation principale" });
   await navigation.getByRole("link", { name: "Tickets" }).click();

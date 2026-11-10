@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { IconeFermer, IconeMenu } from "./icones";
-import { estActif, LIENS } from "./liens-navigation";
+import { estActif, LIEN_ADMINISTRATION, LIENS } from "./liens-navigation";
 import { Logo } from "./Logo";
 
 // En-tête marine : logo à gauche, liens à droite, lien actif souligné de
@@ -14,6 +14,7 @@ import { Logo } from "./Logo";
 // Les emplacements `compte*` reçoivent la zone du compte (ZoneCompte, lue
 // côté serveur) : absents du fallback, ils arrivent en flux.
 type EmplacementsCompte = {
+  liensPersonnel?: ReactNode;
   compteOrdinateur?: ReactNode;
   compteMobile?: ReactNode;
   compteMenu?: ReactNode;
@@ -21,6 +22,7 @@ type EmplacementsCompte = {
 
 export function BarreEnTete({
   cheminActif,
+  liensPersonnel,
   compteOrdinateur,
   compteMobile,
   compteMenu,
@@ -64,31 +66,26 @@ export function BarreEnTete({
             <span className="sr-only">Menu</span>
           </button>
 
+          {/* Un clic sur un lien (y compris le lien du personnel, venu du
+              serveur) referme le menu mobile. */}
           <ul
             id={idMenu}
+            onClick={(evenement) => {
+              if ((evenement.target as HTMLElement).closest("a")) setMenuOuvert(false);
+            }}
             className={`${
               menuOuvert ? "flex" : "hidden"
             } absolute inset-x-0 top-full flex-col border-t border-white/15 bg-marine px-4 py-2 shadow-carte md:static md:flex md:flex-row md:gap-2 md:border-0 md:p-0 md:shadow-none`}
           >
-            {LIENS.map(({ href, libelle }) => {
-              const actif = estActif(href, cheminActif);
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    aria-current={actif ? "page" : undefined}
-                    onClick={() => setMenuOuvert(false)}
-                    className={`flex min-h-11 items-center px-3 text-corps font-semibold underline-offset-[10px] hover:underline md:decoration-2 ${
-                      actif
-                        ? "underline decoration-cuivre-sur-marine decoration-2"
-                        : "text-white/85 hover:text-white hover:decoration-white/50"
-                    }`}
-                  >
-                    {libelle}
-                  </Link>
-                </li>
-              );
-            })}
+            {LIENS.map(({ href, libelle }) => (
+              <LienPrincipal
+                key={href}
+                href={href}
+                libelle={libelle}
+                actif={estActif(href, cheminActif)}
+              />
+            ))}
+            {liensPersonnel}
             {compteMenu}
           </ul>
           {compteOrdinateur}
@@ -96,6 +93,31 @@ export function BarreEnTete({
       </div>
     </header>
   );
+}
+
+// Un lien de la navigation principale, souligné de cuivre quand il est actif.
+function LienPrincipal({ href, libelle, actif }: { href: string; libelle: string; actif: boolean }) {
+  return (
+    <li>
+      <Link
+        href={href}
+        aria-current={actif ? "page" : undefined}
+        className={`flex min-h-11 items-center px-3 text-corps font-semibold underline-offset-[10px] hover:underline md:decoration-2 ${
+          actif
+            ? "underline decoration-cuivre-sur-marine decoration-2"
+            : "text-white/85 hover:text-white hover:decoration-white/50"
+        }`}
+      >
+        {libelle}
+      </Link>
+    </li>
+  );
+}
+
+// Lien « Tickets », placé par ZoneCompte pour l'employé et l'administrateur.
+export function LienPersonnel() {
+  const { href, libelle } = LIEN_ADMINISTRATION;
+  return <LienPrincipal href={href} libelle={libelle} actif={estActif(href, usePathname())} />;
 }
 
 export function EnTete(emplacements: EmplacementsCompte) {

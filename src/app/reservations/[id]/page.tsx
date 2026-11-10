@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 import { BadgeStatut } from "@/components/Badge";
@@ -20,10 +20,13 @@ import {
   IconeSablier,
 } from "@/components/icones";
 import { PhotoSalle } from "@/components/PhotoSalle";
+import { lireTitulaireReservation, lireUtilisateur } from "@/lib/acces";
+import { adresseConnexion } from "@/lib/connexion";
 import { DELAI_PAIEMENT_MS } from "@/lib/expiration";
 import { formaterDuree, formaterHeure, formaterPlage, formaterPrix } from "@/lib/format";
 import { motifAnnulation, type MotifAnnulation } from "@/lib/motif-annulation";
 import { FUSEAU_CENTRE } from "@/lib/reservation";
+import { peutPayerReservation, peutVoirReservation } from "@/lib/roles";
 import { obtenirStripe } from "@/lib/stripe";
 import {
   actualiserReservation,
@@ -90,13 +93,34 @@ export default function ReservationPage({ params }: PageProps<"/reservations/[id
 
 async function SuiviReservation({ id }: { id: string }) {
   await connection();
+
+  // Contrôle d'accès AVANT toute lecture complète ou écriture (actualiser
+  // une réservation peut la confirmer, l'annuler ou la rembourser).
+  // Visiteur : connexion d'abord, que la réservation existe ou non.
+  const utilisateur = await lireUtilisateur();
+  if (!utilisateur) {
+    redirect(adresseConnexion(`/reservations/${id}`));
+  }
+  // Ni titulaire, ni personnel : exactement la même réponse qu'une
+  // réservation inexistante (on ne confirme pas qu'elle existe).
+  const titulaire = await lireTitulaireReservation(id);
+  if (!titulaire || !peutVoirReservation(utilisateur, titulaire)) {
+    notFound();
+  }
+
   const { reservation, verifiee } = await chargerReservation(id);
   if (!reservation) {
     notFound();
   }
 
   if (reservation.statut === "EN_ATTENTE") {
-    return <EnAttente reservation={reservation} verifiee={verifiee} />;
+    return (
+      <EnAttente
+        reservation={reservation}
+        verifiee={verifiee}
+        payable={peutPayerReservation(utilisateur, reservation)}
+      />
+    );
   }
   if (reservation.statut === "CONFIRMEE") {
     return <Confirmee reservation={reservation} />;
@@ -109,9 +133,12 @@ async function SuiviReservation({ id }: { id: string }) {
 function EnAttente({
   reservation,
   verifiee,
+  payable,
 }: {
   reservation: ReservationLue;
   verifiee: boolean;
+  // Le titulaire paie ; le personnel consulte seulement.
+  payable: boolean;
 }) {
   // Heure limite exacte (R6 : 15 minutes après la demande), et non un compte
   // à rebours de 15 minutes qui repartirait à chaque rechargement.
@@ -142,10 +169,18 @@ function EnAttente({
         <Montant reservation={reservation} libelle="Montant à payer" />
       </Detail>
 
-      <BoutonPayer reservationId={reservation.id} montant={montant} />
-      <p className="mt-3 text-center text-petit text-encre-douce">
-        Paiement par carte sur la page sécurisée de Stripe.
-      </p>
+      {payable ? (
+        <>
+          <BoutonPayer reservationId={reservation.id} montant={montant} />
+          <p className="mt-3 text-center text-petit text-encre-douce">
+            Paiement par carte sur la page sécurisée de Stripe.
+          </p>
+        </>
+      ) : (
+        <p className="mt-6 text-center text-petit text-encre-douce">
+          Seul le client titulaire de cette réservation peut la payer.
+        </p>
+      )}
     </article>
   );
 }

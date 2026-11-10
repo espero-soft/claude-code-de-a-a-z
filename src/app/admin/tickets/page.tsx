@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 import { Badge, type TonBadge } from "@/components/Badge";
@@ -12,21 +12,20 @@ import {
   IconeHorloge,
   IconePersonne,
 } from "@/components/icones";
-import { adminDisponible, ordonnerTickets } from "@/lib/admin-tickets";
+import { lireUtilisateur } from "@/lib/acces";
+import { ordonnerTickets } from "@/lib/admin-tickets";
+import { adresseConnexion } from "@/lib/connexion";
 import { formaterHeure, formaterPlage, formaterPrix } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { FUSEAU_CENTRE } from "@/lib/reservation";
+import { peut } from "@/lib/roles";
 import { BoutonValider } from "./BoutonValider";
 
-// En production, le 404 ne doit pas trahir l'écran par son titre.
-export const metadata: Metadata = adminDisponible()
-  ? {
-      title: "Tickets du support",
-      description:
-        "Messages des clients triés par le modèle, avec un brouillon de réponse à relire.",
-      robots: { index: false },
-    }
-  : {};
+// Titre neutre : la page répond 404 à qui n'est pas du personnel.
+export const metadata: Metadata = {
+  title: "Administration",
+  robots: { index: false },
+};
 
 const formatJour = new Intl.DateTimeFormat("fr-FR", {
   timeZone: FUSEAU_CENTRE,
@@ -71,16 +70,33 @@ const libelleStatutReservation = {
 // Maquette 05, sans ce qui n'existe pas (plan de refonte) : ni filtres, ni
 // menu « Clients » ou « Administration », ni numéro de ticket inventé, ni nom
 // de client (un ticket n'a qu'un e-mail), ni brouillon modifiable.
+// Réservé à l'employé et à l'administrateur (capacité « tickets »). Tout le
+// contenu, titre compris, est derrière le contrôle : la coquille statique ne
+// contient que le <main>. Le proxy renvoie déjà ailleurs les visiteurs sans
+// cookie et les comptes sans rôle ; on revérifie ici (src/lib/acces.ts).
 export default function TicketsPage() {
-  // Pas de connexion dans le projet : en production, la page n'existe pas.
-  // Appelé avant tout rendu, notFound() est résolu dès le build : la page
-  // reste statique et répond un vrai 404.
-  if (!adminDisponible()) {
+  return (
+    <main id="contenu" className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 md:py-16">
+      <Suspense fallback={<p className="text-encre-douce">Chargement…</p>}>
+        <EcranTickets />
+      </Suspense>
+    </main>
+  );
+}
+
+async function EcranTickets() {
+  await connection();
+  const utilisateur = await lireUtilisateur();
+  if (!utilisateur) {
+    redirect(adresseConnexion("/admin/tickets"));
+  }
+  // Un client reçoit la même réponse qu'une page inexistante.
+  if (!peut(utilisateur.role, "tickets")) {
     notFound();
   }
 
   return (
-    <main id="contenu" className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 md:py-16">
+    <>
       <p className="sur-titre text-encre-douce">Administration</p>
       <h1 className="mt-2 text-titre-1 text-marine">Tickets du support</h1>
       <span aria-hidden="true" className="mt-4 block h-1 w-16 rounded-full bg-cuivre" />
@@ -92,7 +108,7 @@ export default function TicketsPage() {
       <Suspense fallback={<p className="mt-10 text-encre-douce">Chargement des tickets…</p>}>
         <ListeTickets />
       </Suspense>
-    </main>
+    </>
   );
 }
 

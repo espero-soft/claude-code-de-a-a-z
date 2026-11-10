@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adresseConnexion,
   cheminDeRetour,
   erreurCode,
   erreurEmail,
@@ -136,5 +137,16 @@ describe("initialeCompte", () => {
 
   it("prend celle de l'e-mail quand le nom est vide", () => {
     expect(initialeCompte("", "claire@exemple.fr")).toBe("C");
+  });
+});
+
+describe("adresseConnexion", () => {
+  it("renvoie vers /connexion avec la page demandée en retour", () => {
+    expect(adresseConnexion("/reservations/abc")).toBe("/connexion?retour=%2Freservations%2Fabc");
+    expect(adresseConnexion("/admin/tickets?x=1")).toBe("/connexion?retour=%2Fadmin%2Ftickets%3Fx%3D1");
+  });
+
+  it("ne glisse jamais une adresse extérieure dans le retour", () => {
+    expect(adresseConnexion("//pirate.example")).toBe("/connexion?retour=%2F");
   });
 });

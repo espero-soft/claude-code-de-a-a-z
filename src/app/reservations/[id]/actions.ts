@@ -2,7 +2,9 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ouvrirPaiement } from "@/lib/suivi-paiement";
+import { lireTitulaireReservation, lireUtilisateur } from "@/lib/acces";
+import { peutPayerReservation } from "@/lib/roles";
+import { ouvrirPaiement, RESERVATION_INEXISTANTE } from "@/lib/suivi-paiement";
 
 export type EtatPaiement = { erreur?: string };
 
@@ -10,6 +12,16 @@ export type EtatPaiement = { erreur?: string };
 // la réservation si elle n'est plus à payer (R6).
 // L'état précédent passé par useActionState n'est pas utile : non déclaré.
 export async function payer(reservationId: string): Promise<EtatPaiement> {
+  // Une Server Action s'appelle en POST sans passer par la page : la session
+  // et le titulaire sont vérifiés ici, avant toute lecture ou écriture.
+  // Visiteur, autre client ou personnel : même réponse qu'une réservation
+  // inexistante.
+  const utilisateur = await lireUtilisateur();
+  const reservation = utilisateur ? await lireTitulaireReservation(reservationId) : null;
+  if (!reservation || !peutPayerReservation(utilisateur, reservation)) {
+    return { erreur: RESERVATION_INEXISTANTE };
+  }
+
   // Next vérifie que l'en-tête Origin d'une Server Action correspond au site :
   // c'est l'adresse de retour après le paiement.
   const origine = (await headers()).get("origin");

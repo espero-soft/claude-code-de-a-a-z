@@ -120,6 +120,12 @@ export function cheminDeRetour(valeur: string | string[] | undefined): string {
   return valeur;
 }
 
+// Page de connexion qui ramène ensuite à `chemin` (page réservée aux comptes,
+// ouverte par un visiteur).
+export function adresseConnexion(chemin: string): string {
+  return `/connexion?retour=${encodeURIComponent(cheminDeRetour(chemin))}`;
+}
+
 // Initiale du compte pour l'en-tête : celle du nom s'il est renseigné, sinon
 // celle de l'e-mail (le nom est vide à la création par code).
 export function initialeCompte(nom: string, email: string): string {

@@ -1,20 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminDisponible, ordonnerTickets, type StatutTicket, type Urgence } from "./admin-tickets";
-
-describe("adminDisponible", () => {
-  it("ouvre l'administration en développement", () => {
-    expect(adminDisponible("development")).toBe(true);
-  });
-
-  it("la ferme en production", () => {
-    expect(adminDisponible("production")).toBe(false);
-  });
-
-  it("la ferme par défaut si NODE_ENV est absent ou inattendu", () => {
-    expect(adminDisponible(undefined)).toBe(false);
-    expect(adminDisponible("test")).toBe(false);
-  });
-});
+import { ordonnerTickets, type StatutTicket, type Urgence } from "./admin-tickets";
 
 describe("ordonnerTickets", () => {
   const ticket = (id: string, urgence: Urgence, statut: StatutTicket, heure: string) => ({

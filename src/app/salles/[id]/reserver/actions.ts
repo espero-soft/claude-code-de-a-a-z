@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { utilisateurAvec } from "@/lib/acces";
 import { messageCreneauPris } from "@/lib/chevauchement";
 import { trouverConflitConfirme } from "@/lib/conflit-confirme";
 import { calculerMontant } from "@/lib/montant";
@@ -34,6 +35,13 @@ export async function reserver(
     emailClient: lire("emailClient"),
   };
 
+  // Une Server Action s'appelle en POST sans passer par la page : la session
+  // est vérifiée ici. La réservation est rattachée au compte (titulaire).
+  const utilisateur = await utilisateurAvec("reserver");
+  if (!utilisateur) {
+    return { erreurs: { general: "Connectez-vous pour réserver une salle." }, valeurs };
+  }
+
   const resultat = validerReservation(valeurs, new Date());
   if (!resultat.ok) {
     return { erreurs: resultat.erreurs, valeurs };
@@ -64,6 +72,7 @@ export async function reserver(
   const reservation = await prisma.reservation.create({
     data: {
       salleId: salle.id,
+      utilisateurId: utilisateur.id,
       debut: resultat.debut,
       fin: resultat.fin,
       nomClient: resultat.nomClient,

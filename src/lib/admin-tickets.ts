@@ -1,12 +1,6 @@
-// Écran d'administration des tickets du support (/admin/tickets).
-//
-// Le projet n'a pas de connexion : l'administration n'existe qu'en
-// développement. En production, la page répond 404 et la Server Action refuse
-// d'agir (une action reste appelable directement, même si la page est en 404).
-// Refus par défaut : seul NODE_ENV === "development" ouvre l'accès.
-export function adminDisponible(env: string | undefined = process.env.NODE_ENV): boolean {
-  return env === "development";
-}
+// Écran d'administration des tickets du support (/admin/tickets). L'accès
+// (employé et administrateur) est contrôlé par src/lib/acces.ts et les règles
+// de src/lib/roles.ts.
 
 export type Urgence = "basse" | "normale" | "haute";
 export type StatutTicket = "A_TRAITER" | "VALIDE";
