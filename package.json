@@ -14,7 +14,8 @@
     "db:reset": "prisma migrate reset",
     "revue": "node scripts/revue.mjs",
     "premier-appel": "tsx scripts/premier-appel.ts",
-    "agent-outil": "tsx scripts/agent-outil.ts"
+    "agent-outil": "tsx scripts/agent-outil.ts",
+    "cache-prompt": "tsx scripts/cache-prompt.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.7.0",
