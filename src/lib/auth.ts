@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { envoyerCourriel } from "@/lib/courriel";
+import { gardeConnexion, ROUTES_CODE_FERMEES } from "@/lib/garde-connexion";
 import { prisma } from "@/lib/prisma";
 
 // Authentification sans mot de passe (décision du module 12, voir SECURITE.md) :
@@ -15,12 +16,19 @@ const DUREE_CODE_SECONDES = 5 * 60;
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "sqlite" }),
   // Pas d'e-mail + mot de passe : emailAndPassword reste désactivé (défaut).
+  // Routes de code inutilisées fermées (404) : elles trahissaient l'existence
+  // d'un compte (voir garde-connexion.ts).
+  disabledPaths: ROUTES_CODE_FERMEES,
   rateLimit: {
     // Compteurs en base plutôt qu'en mémoire : ils survivent à un redémarrage.
-    // Actif en production seulement (défaut de Better Auth).
+    // Actif en production seulement (défaut de Better Auth). Limite par IP,
+    // lue dans X-Forwarded-For : contournable si le proxy de production ne
+    // réécrit pas cet en-tête. La limite par adresse e-mail de gardeConnexion
+    // ne dépend pas de l'IP et reste active partout.
     storage: "database",
   },
   plugins: [
+    gardeConnexion(),
     emailOTP({
       otpLength: 6,
       expiresIn: DUREE_CODE_SECONDES,

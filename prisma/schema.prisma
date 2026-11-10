@@ -180,3 +180,13 @@ model RateLimit {
   @@unique([key])
   @@map("rateLimit")
 }
+
+// Compteurs de la limite par adresse e-mail de la connexion par code
+// (src/lib/limite-connexion.ts, SECURITE.md section 10) : envois de codes et
+// essais de code, quelle que soit l'adresse IP. Table distincte de rateLimit,
+// que Better Auth purge au-delà de sa propre fenêtre (60 s).
+model LimiteConnexion {
+  cle    String   @id // « envoi:<e-mail> » ou « essai:<e-mail> »
+  nombre Int // demandes comptées dans la fenêtre en cours
+  debut  DateTime // début de la fenêtre en cours
+}

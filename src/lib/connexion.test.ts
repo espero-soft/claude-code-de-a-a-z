@@ -64,6 +64,34 @@ describe("messageErreurConnexion", () => {
     expect(messageErreurConnexion({ status: 400, code: "INVALID_EMAIL" }).champ).toBe("email");
   });
 
+  it("explique la limite des codes demandés pour une adresse, avec le délai", () => {
+    expect(
+      messageErreurConnexion({
+        status: 429,
+        code: "TROP_DE_CODES_DEMANDES",
+        reessayerDansSecondes: 61,
+      }),
+    ).toEqual({
+      champ: "general",
+      message:
+        "Trop de codes demandés pour cette adresse. " +
+        "Utilisez le dernier code reçu, ou réessayez dans 2 minutes.",
+    });
+  });
+
+  it("explique la limite des essais de code pour une adresse", () => {
+    expect(
+      messageErreurConnexion({
+        status: 429,
+        code: "TROP_D_ESSAIS_SUR_CETTE_ADRESSE",
+        reessayerDansSecondes: 30,
+      }),
+    ).toEqual({
+      champ: "general",
+      message: "Trop d'essais de code pour cette adresse. Par sécurité, réessayez dans 1 minute.",
+    });
+  });
+
   it("explique la limitation de débit (429)", () => {
     expect(messageErreurConnexion({ status: 429 })).toEqual({
       champ: "general",

@@ -34,7 +34,19 @@ export function erreurCode(code: string): string | null {
 
 // Erreur renvoyée par le client Better Auth ({ status, code }), ou null pour
 // une erreur réseau (serveur injoignable).
-export type ErreurAuth = { status?: number; code?: string } | null;
+// reessayerDansSecondes : délai renvoyé par la limite par adresse
+// (src/lib/garde-connexion.ts).
+export type ErreurAuth = {
+  status?: number;
+  code?: string;
+  reessayerDansSecondes?: number;
+} | null;
+
+// « 1 minute », « 12 minutes » : arrondi à la minute supérieure.
+export function dureeEnMinutes(secondes: number | undefined): string {
+  const minutes = Math.max(1, Math.ceil((secondes ?? 60) / 60));
+  return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+}
 
 export type MessageErreur = {
   // Champ concerné : le message s'affiche sous le champ, sinon dans un encadré.
@@ -45,6 +57,24 @@ export type MessageErreur = {
 };
 
 export function messageErreurConnexion(erreur: ErreurAuth): MessageErreur {
+  // Limite par adresse e-mail (codes de src/lib/garde-connexion.ts), avant
+  // la limite générique par IP qui répond aussi 429.
+  if (erreur?.code === "TROP_DE_CODES_DEMANDES") {
+    return {
+      champ: "general",
+      message:
+        "Trop de codes demandés pour cette adresse. " +
+        `Utilisez le dernier code reçu, ou réessayez dans ${dureeEnMinutes(erreur.reessayerDansSecondes)}.`,
+    };
+  }
+  if (erreur?.code === "TROP_D_ESSAIS_SUR_CETTE_ADRESSE") {
+    return {
+      champ: "general",
+      message:
+        "Trop d'essais de code pour cette adresse. " +
+        `Par sécurité, réessayez dans ${dureeEnMinutes(erreur.reessayerDansSecondes)}.`,
+    };
+  }
   if (erreur?.status === 429) {
     return {
       champ: "general",

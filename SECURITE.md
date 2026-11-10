@@ -146,7 +146,7 @@ Ce que la bibliothèque **ne fait pas** à notre place, et qui reste notre trava
 | Risque | Compensation |
 |---|---|
 | La sécurité du compte client = celle de sa boîte e-mail | Acceptable pour un client (c'était déjà le cas avec « mot de passe oublié »). TOTP obligatoire pour les rôles sensibles. |
-| Code à 6 chiffres = 10⁶ possibilités, devinable en force brute | 3 essais par code, puis il est invalidé ; validité de 5 minutes ; à usage unique ; envoi limité à 3 par minute et par adresse IP (en production). |
+| Code à 6 chiffres = 10⁶ possibilités, devinable en force brute | 3 essais par code, puis il est invalidé ; validité de 5 minutes ; à usage unique ; **par adresse e-mail** : 3 codes par quart d'heure et 10 essais par heure, tous codes confondus (section 10). La limite de Better Auth par adresse IP (en production) ne suffit pas : l'IP est lue dans un en-tête que le client choisit. |
 | Le code transite par e-mail | Valable 5 minutes et une seule fois. Stocké en base sous forme d'**empreinte** (`storeOTP: "hashed"`), jamais en clair. |
 | Un e-mail lent ou en indésirables bloque la connexion | Renvoi d'un code possible (débit limité). En développement, tout arrive dans Mailpit. |
 | Un tiers peut faire envoyer des codes à une adresse (nuisance) | Limitation de débit ; le message dit d'ignorer l'e-mail si l'on n'a rien demandé. |
@@ -199,3 +199,31 @@ Pièges rencontrés :
 6. TOTP obligatoire pour employés et admins (section 7.3).
 7. Tests Playwright (`e2e/`) : un visiteur est redirigé, un client ne voit pas la réservation d'un autre (404), un client n'ouvre pas `/admin/tickets`, et l'action `validerBrouillon` appelée sans rôle est refusée.
 8. Mettre à jour `CLAUDE.md` (architecture, nouvelles variables d'environnement) et la section « Sécurité ».
+
+## 10. Attaques contre la connexion par code (module 12)
+
+Attaques menées comme un pirate, directement sur les routes HTTP `/api/auth/...` (sans l'écran), contre le serveur de développement et contre un build de production (`next start`, où la limite de Better Auth est active). Chacune est rejouée par `e2e/attaques-connexion.spec.ts`. Sans les parades, les trois tests des failles échouent ; avec elles, tout passe.
+
+| Attaque | Résultat avant | Verdict | Parade |
+|---|---|---|---|
+| Faux code, code jamais demandé | `400 INVALID_OTP` | Tient | - |
+| Code expiré | `400 OTP_EXPIRED`, puis code effacé (`INVALID_OTP` si on le rejoue) | Tient | - |
+| 3 faux essais, puis le bon code | `403 TOO_MANY_ATTEMPTS` au 4e | Tient | - |
+| 20 demandes de code vers la même adresse | Dev : 20 e-mails. Production : 3, puis `429`… mais **20 e-mails** en changeant `X-Forwarded-For` à chaque requête | **Faille** | Limite par adresse e-mail : 3 codes par quart d'heure |
+| Force brute : nouveau code + 3 essais, en boucle | Production, `X-Forwarded-For` changé à chaque tour : 30 essais sur 10 codes, aucun refus. Sans plafond, environ 333 000 codes suffisent pour essayer les 10⁶ valeurs | **Faille** | Limite par adresse e-mail : 10 essais par heure, tous codes confondus (moins de 1 chance sur 4 000 par jour) |
+| Le serveur trahit-il un compte ? Réponses de `send-verification-otp` (`sign-in`) | Identiques (`200 {"success":true}`), temps médian 9 ms contre 10 ms | Tient | - |
+| Idem, type `forget-password` puis 4 faux codes sur `/email-otp/check-verification-otp` | Compte existant : `400 400 400 403`. Adresse inconnue : `400 400 400 400`. Aucun e-mail ne part : la victime ne voit rien | **Faille** (énumération silencieuse) | Routes de code inutilisées fermées (`disabledPaths`, 404) ; seul le type `sign-in` est accepté |
+
+Mise en place :
+
+- `src/lib/limite-connexion.ts` (pur, testé) : règles `LIMITE_ENVOIS` et `LIMITE_ESSAIS`, décision `deciderLimite` en fenêtre fixe, clé par adresse en minuscules.
+- `src/lib/garde-connexion.ts` : extension Better Auth (crochets `before`/`after`, valables en HTTP comme par `auth.api`). Compte avant d'envoyer ou de vérifier, refuse en `429` avec un code (`TROP_DE_CODES_DEMANDES`, `TROP_D_ESSAIS_SUR_CETTE_ADRESSE`), le délai restant et `Retry-After`. Une connexion réussie remet le compteur d'essais à zéro. Écriture atomique (on écrit seulement si la ligne n'a pas changé depuis sa lecture) ; en cas de doute, on refuse.
+- Table `LimiteConnexion`, **distincte** de `rateLimit` : Better Auth purge dans `rateLimit` toute ligne plus vieille que sa plus longue fenêtre (60 s), quelle que soit sa clé. Des compteurs d'une heure y seraient effacés au bout d'une minute.
+- `src/lib/connexion.ts` : messages en français pour ces deux refus, avec le délai en minutes.
+- `e2e/vieillir-connexion.ts` simule le temps qui passe (code expiré, fenêtre écoulée) ; `e2e/nettoyage.ts` efface aussi les compteurs et les comptes de test.
+
+Ce que l'on accepte, et ce qui reste à faire :
+
+- **Blocage ciblé.** Un pirate peut épuiser les essais d'une victime : elle ne peut plus se connecter pendant au plus une heure. On le préfère à la prise de contrôle du compte.
+- **IP falsifiable en production.** Better Auth croit un `X-Forwarded-For` à une seule valeur, et `next start` le transmet tel quel. La limite par IP ne protège donc rien tant que le déploiement ne la fiabilise pas : mettre l'application derrière un proxy qui **réécrit** cet en-tête (ou ajoute l'IP réelle en dernier, avec `advanced.ipAddress.trustedProxies`). Sinon, un pirate peut toujours faire envoyer des codes à **beaucoup d'adresses différentes** (3 chacune). À trancher au choix de l'hébergement.
+- Vérifié et écarté : sur une même machine, tous les visiteurs partagent le compteur d'IP `::1`. Ce n'est pas un compteur commun à tout le monde en production : Next.js renseigne l'IP de la connexion quand l'en-tête manque.
