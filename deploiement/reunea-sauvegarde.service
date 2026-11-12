@@ -1,0 +1,19 @@
+# Sauvegarde de la base, lancée toutes les heures par reunea-sauvegarde.timer
+# (design/PLAN-PRODUCTION.md, section 6). Copié dans /etc/systemd/system/.
+# Un échec apparaît dans `systemctl --failed` et `journalctl -u reunea-sauvegarde`.
+[Unit]
+Description=Sauvegarde de la base Réunéa
+
+[Service]
+Type=oneshot
+User=reunea
+Group=reunea
+ExecStart=/bin/bash /srv/reunea/current/scripts/production/sauvegarder-base.sh
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/reunea /var/backups/reunea
+# Sauvegardes en 640 (scripts) : lisibles par le groupe reunea, auquel
+# appartient le compte d'administration (scripts/production/recuperer-sauvegarde.sh).
+UMask=0027

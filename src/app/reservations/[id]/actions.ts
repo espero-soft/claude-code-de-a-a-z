@@ -1,8 +1,8 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { lireTitulaireReservation, lireUtilisateur } from "@/lib/acces";
+import { adressePublique } from "@/lib/configuration";
 import { peutPayerReservation } from "@/lib/roles";
 import { ouvrirPaiement, RESERVATION_INEXISTANTE } from "@/lib/suivi-paiement";
 
@@ -22,13 +22,11 @@ export async function payer(reservationId: string): Promise<EtatPaiement> {
     return { erreur: RESERVATION_INEXISTANTE };
   }
 
-  // Next vérifie que l'en-tête Origin d'une Server Action correspond au site :
-  // c'est l'adresse de retour après le paiement.
-  const origine = (await headers()).get("origin");
-  if (!origine) return { erreur: "Impossible de lancer le paiement depuis cette page." };
-
   let url: string;
   try {
+    // Adresse de retour après le paiement : l'adresse publique configurée
+    // (BETTER_AUTH_URL), jamais un en-tête de la requête.
+    const origine = adressePublique(process.env);
     const resultat = await ouvrirPaiement(reservationId, origine, new Date());
     if (!resultat.ok) return { erreur: resultat.erreur };
     url = resultat.url;

@@ -1,10 +1,11 @@
 // Insère les 4 salles du centre d'affaires (photos optimisées dans
-// public/salles, d'après design/photos) et une réservation confirmée de
-// démonstration. Relançable sans créer de doublon : chaque salle est retrouvée
+// public/salles, d'après design/photos) et, hors production seulement
+// (reservationDemoAutorisee), une réservation confirmée de démonstration. Relançable sans créer de doublon : chaque salle est retrouvée
 // par son slug, la réservation par son identifiant fixe, puis mise à jour.
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
 import { calculerMontant } from "../src/lib/montant";
+import { reservationDemoAutorisee } from "../src/lib/configuration";
 import { dateDemo } from "../src/lib/date-demo";
 import { heureDeParis } from "../src/lib/reservation";
 
@@ -69,7 +70,12 @@ async function main() {
     });
   }
 
-  await insererReservationDemo();
+  // Jamais en production : elle bloquerait un vrai créneau (R3).
+  if (reservationDemoAutorisee(process.env)) {
+    await insererReservationDemo();
+  } else {
+    console.log("Production : pas de réservation de démonstration.");
+  }
 
   console.log(`Seed terminé : ${await prisma.salle.count()} salles en base.`);
 }

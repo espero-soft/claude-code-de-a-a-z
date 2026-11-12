@@ -1,0 +1,13 @@
+# Toutes les heures (décision D7). Copié dans /etc/systemd/system/, puis :
+#   sudo systemctl enable --now reunea-sauvegarde.timer
+[Unit]
+Description=Sauvegarde horaire de la base Réunéa
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5min
+# Rattrape une sauvegarde manquée pendant un redémarrage nocturne.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

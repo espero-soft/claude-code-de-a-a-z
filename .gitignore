@@ -42,6 +42,10 @@ dev.db
 *.db
 *.db-journal
 
+# copies des sauvegardes de production (scripts/production/recuperer-sauvegarde.sh) :
+# données personnelles, jamais commitées
+/sauvegardes/
+
 # client Prisma généré (recréé par prisma generate)
 /src/generated/
 

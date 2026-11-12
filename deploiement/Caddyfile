@@ -1,0 +1,34 @@
+# Caddy devant Réunéa (design/PLAN-PRODUCTION.md, section 4).
+# Copié dans /etc/caddy/Caddyfile. Le domaine vient de la variable
+# REUNEA_DOMAINE (décision D2 : sous-domaine encore à venir), posée par
+# `sudo systemctl edit caddy` :
+#   [Service]
+#   Environment=REUNEA_DOMAINE=reservations.exemple.fr
+# Caddy obtient et renouvelle seul le certificat HTTPS (ports 80 et 443 ouverts,
+# DNS du domaine pointant sur le serveur).
+
+{$REUNEA_DOMAINE} {
+	# Next écoute seulement sur la boucle locale, localhost:3000
+	# (deploiement/reunea.service : -H localhost, pas -H 127.0.0.1).
+	# Caddy transmet l'hôte public (Server Actions : pas d'allowedOrigins à
+	# régler) et écrit X-Forwarded-For, lu par la limite de débit de Better Auth
+	# et le journal des connexions. À vérifier en recette (section 5.3).
+	# Pas d'`encode` : on garde les réponses en flux (Suspense) telles quelles.
+	reverse_proxy localhost:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# Journal d'accès (adresses IP) : 30 jours, moins que les 90 jours du
+	# journal des connexions annoncés sur /demonstration.
+	log {
+		output file /var/log/caddy/reunea.log {
+			roll_keep_for 720h
+		}
+	}
+}

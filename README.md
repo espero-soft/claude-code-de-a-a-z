@@ -43,6 +43,16 @@ npx prisma studio                    # facultatif : parcourir les données
 - Repartir d'une base vide : `npm run db:reset`, puis `npm run db:seed`.
 - Les prix et montants sont stockés **en centimes** (entiers) : 25 € s'écrit `2500`.
 
+## Mise en production
+
+Réunéa tourne en démonstration sur un petit serveur : Ubuntu, Caddy pour le HTTPS, SQLite sur le disque, e-mails par SMTP, Stripe en mode test.
+
+- Le plan, avec ses décisions : [design/PLAN-PRODUCTION.md](design/PLAN-PRODUCTION.md).
+- L'installation pas à pas et les commandes du quotidien : [deploiement/LISEZMOI.md](deploiement/LISEZMOI.md).
+- Les scripts (livrer, revenir en arrière, sauvegarder, restaurer, contrôle de fumée) : `scripts/production/`.
+
+Une version se livre depuis une **étiquette posée sur `main`** (`v<année>.<mois>.<jour>-<n>`), jamais depuis une branche. Le serveur refuse de démarrer si sa configuration est incomplète, et `/api/sante` indique s'il répond.
+
 ## Organisation du dépôt
 
 | Où | Contenu |
@@ -65,7 +75,7 @@ git switch -c ma-version fin-module-03
 
 - **Next.js** (App Router) et **TypeScript**
 - **Tailwind CSS**
-- Ajoutés pendant la formation : **Prisma** (SQLite en local, PostgreSQL en production), **Stripe** en mode test, **Vitest** et **Playwright** pour les tests
+- Ajoutés pendant la formation : **Prisma** et **SQLite** (en local comme en production), **Stripe** en mode test, **Vitest** et **Playwright** pour les tests
 
 Les versions sont figées dans `package.json`, pour que le projet reste identique à celui des vidéos.
 

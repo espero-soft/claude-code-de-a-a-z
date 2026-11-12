@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import { Suspense } from "react";
+import { BandeauDemonstration } from "@/components/BandeauDemonstration";
 import { BarreEnTete, EnTete } from "@/components/EnTete";
 import { PiedDePage } from "@/components/PiedDePage";
 import { ZoneCompte } from "@/components/ZoneCompte";
@@ -45,6 +46,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Aller au contenu
           </a>
         </nav>
+        {/* Sur chaque page : paiements simulés, réservations non réelles. */}
+        <BandeauDemonstration />
         {/* Avec Cache Components, usePathname suspend sur les routes à
             paramètre inconnu au build (/salles/[id]) : la barre sans lien
             actif sert de fallback pendant le prérendu. */}

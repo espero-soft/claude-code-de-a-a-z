@@ -26,7 +26,15 @@
     ],
     "ask": [
       "Bash(git push *)",
-      "Bash(git reset --hard *)"
+      "Bash(git reset --hard *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(rsync *)",
+      "Bash(sftp *)",
+      "Bash(bash scripts/production/*)",
+      "Bash(scripts/production/*)",
+      "Bash(sudo *)",
+      "Bash(git tag *)"
     ]
   },
   "hooks": {

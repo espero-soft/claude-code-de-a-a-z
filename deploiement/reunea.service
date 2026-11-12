@@ -1,0 +1,43 @@
+# Service systemd de Réunéa (design/PLAN-PRODUCTION.md, section 4).
+# Copié dans /etc/systemd/system/reunea.service, puis :
+#   sudo systemctl daemon-reload && sudo systemctl enable reunea
+[Unit]
+Description=Réunéa (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=reunea
+Group=reunea
+# Lien vers la version en service, basculé par scripts/production/deployer.sh.
+WorkingDirectory=/srv/reunea/current
+Environment=NODE_ENV=production
+# Secrets : lus par Next dans /srv/reunea/current/.env (lien vers /etc/reunea/reunea.env).
+# -H localhost : par défaut next start écoute sur 0.0.0.0 (docs 06-cli/next.md) ;
+# seul Caddy doit pouvoir le joindre. Surtout pas -H 127.0.0.1 : avec Next
+# 16.4.5, les réécritures de src/proxy.ts (404 d'une salle inconnue, de /admin)
+# partent alors vers http://localhost:<port> comme vers un site extérieur et
+# échouent (constaté au contrôle de fumée). PORT ne peut pas venir de .env (même doc).
+ExecStart=/usr/bin/node /srv/reunea/current/node_modules/next/dist/bin/next start -H localhost -p 3000
+Restart=on-failure
+RestartSec=5
+# Arrêt propre : Next termine les requêtes en cours (docs guides/self-hosting.md, 10 à 30 s).
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Durcissement : le service n'écrit que dans la base et dans les versions (.next/cache).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/reunea /srv/reunea/releases
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

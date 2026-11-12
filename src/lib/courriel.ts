@@ -1,9 +1,11 @@
 import nodemailer, { type Transporter } from "nodemailer";
+import { optionsSmtp } from "@/lib/configuration";
 
 // Envoi des e-mails de l'application (codes de connexion pour l'instant).
 // En développement, tout part vers Mailpit (SMTP local sur le port 1025,
 // boîte de réception lisible sur http://localhost:8025) : aucun e-mail ne
-// sort de la machine. En production, SMTP_HOST doit être renseigné.
+// sort de la machine. En production, SMTP_HOST doit être renseigné, et la
+// connexion passe obligatoirement en TLS (optionsSmtp, src/lib/configuration.ts).
 
 type Courriel = { a: string; sujet: string; texte: string };
 
@@ -16,18 +18,9 @@ function creerTransport() {
   if (!hote && process.env.NODE_ENV === "production") {
     throw new Error("SMTP_HOST n'est pas définie (voir .env.example).");
   }
-  return nodemailer.createTransport({
-    host: hote ?? "localhost",
-    port: Number(process.env.SMTP_PORT ?? 1025),
-    // Mailpit n'a ni TLS ni authentification ; un vrai serveur en aura.
-    secure: false,
-    auth: process.env.SMTP_UTILISATEUR
-      ? {
-          user: process.env.SMTP_UTILISATEUR,
-          pass: process.env.SMTP_MOT_DE_PASSE,
-        }
-      : undefined,
-  });
+  // Mailpit : ni TLS ni authentification. Un vrai serveur (Brevo) : STARTTLS
+  // exigé, ou TLS implicite sur le port 465 ; jamais d'envoi en clair.
+  return nodemailer.createTransport(optionsSmtp(process.env));
 }
 
 export async function envoyerCourriel({ a, sujet, texte }: Courriel) {

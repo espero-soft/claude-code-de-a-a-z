@@ -13,8 +13,9 @@ const { getSession, prismaSimule, ouvrirPaiement } = vi.hoisted(() => ({
   ouvrirPaiement: vi.fn(),
 }));
 
+// En-tête Origin forgé : l'adresse de retour du paiement ne doit jamais en venir.
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ origin: "http://localhost:3000" }),
+  headers: async () => new Headers({ origin: "https://site-pirate.exemple" }),
 }));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
@@ -51,6 +52,8 @@ function connecter(id: string | null, role = "CLIENT") {
 // identifiant n'existe pas.
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  vi.stubEnv("BETTER_AUTH_URL", "https://reservations.exemple.fr/");
   prismaSimule.reservation.findUnique.mockImplementation(async ({ where }) =>
     where.id === "r-titulaire" ? { utilisateurId: "titulaire" } : null,
   );
@@ -87,10 +90,21 @@ describe("payer", () => {
     await expect(payer("r-titulaire")).rejects.toThrow(
       "redirection:https://checkout.stripe.test/s",
     );
+    // Retour après paiement : l'adresse configurée, pas l'en-tête Origin forgé.
     expect(ouvrirPaiement).toHaveBeenCalledWith(
       "r-titulaire",
-      "http://localhost:3000",
+      "https://reservations.exemple.fr",
       expect.any(Date),
     );
+  });
+
+  it("n'ouvre aucun paiement si l'adresse publique n'est pas configurée", async () => {
+    vi.stubEnv("BETTER_AUTH_URL", "");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    connecter("titulaire");
+    expect(await payer("r-titulaire")).toEqual({
+      erreur: "Le paiement est momentanément indisponible. Réessayez dans quelques instants.",
+    });
+    expect(ouvrirPaiement).not.toHaveBeenCalled();
   });
 });

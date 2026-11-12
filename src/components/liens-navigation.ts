@@ -4,6 +4,8 @@ export const LIENS = [
   { href: "/", libelle: "Accueil" },
   { href: "/salles", libelle: "Nos salles" },
   { href: "/aide", libelle: "Aide" },
+  // Site de démonstration (paiements simulés), lié aussi par le bandeau.
+  { href: "/demonstration", libelle: "Démonstration" },
 ];
 
 // Liens réservés aux comptes connectés, ajoutés dans l'en-tête par
