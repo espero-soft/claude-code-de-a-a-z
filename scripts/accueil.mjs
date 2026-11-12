@@ -5,7 +5,8 @@
 //   npm run accueil              (ou node scripts/accueil.mjs)
 //   npm run accueil -- --sans-tests
 //
-// Uniquement des modules intégrés à Node : le script doit marcher AVANT npm install.
+// Uniquement des modules intégrés à Node : le script doit marcher AVANT npm ci.
+// Il conseille npm ci, jamais npm install : npm ci suit package-lock.json sans le réécrire.
 // Il ne modifie rien. Secrets : .env est lu en mémoire pour contrôler la
 // présence et la forme des clés ; aucune valeur n'est jamais affichée, seul un
 // état (« renseignée », « valeur d'exemple », « clé live »...).
@@ -62,7 +63,7 @@ export function verifierNode(version, nvmrc) {
       "Node",
       ATTENTION,
       `version ${version}, le projet et la CI utilisent Node ${attendue} (.nvmrc)`,
-      "nvm use (ou installer Node " + attendue + "), puis relancer npm install",
+      "nvm use (ou installer Node " + attendue + "), puis relancer npm ci",
     );
   }
   return point("Node", OK, `version ${version}`);
@@ -70,11 +71,11 @@ export function verifierNode(version, nvmrc) {
 
 export function verifierDependances({ nodeModules, clientPrisma, verrouPlusRecent }) {
   if (!nodeModules) {
-    return [point("Dépendances", A_FAIRE, "node_modules absent", "npm install (génère aussi le client Prisma)")];
+    return [point("Dépendances", A_FAIRE, "node_modules absent", "npm ci (génère aussi le client Prisma)")];
   }
   const resultats = [
     verrouPlusRecent
-      ? point("Dépendances", ATTENTION, "package-lock.json a changé depuis la dernière installation", "npm install")
+      ? point("Dépendances", ATTENTION, "package-lock.json a changé depuis la dernière installation", "npm ci")
       : point("Dépendances", OK, "installées"),
   ];
   resultats.push(
@@ -200,7 +201,7 @@ export function verifierMailpit({ smtp, api, hote, port, urlApi }) {
 }
 
 export function verifierTests({ lances, dependances, statut, resume }) {
-  if (!dependances) return point("Tests", A_FAIRE, "non lancés : dépendances absentes", "npm install, puis npm test");
+  if (!dependances) return point("Tests", A_FAIRE, "non lancés : dépendances absentes", "npm ci, puis npm test");
   if (!lances) return point("Tests", ATTENTION, "non lancés (--sans-tests)", "npm test");
   return statut === 0
     ? point("Tests", OK, resume || "tous passent")

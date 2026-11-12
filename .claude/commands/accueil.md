@@ -15,8 +15,10 @@ Règles strictes sur les secrets :
 
 Ne corrige rien et n'installe rien : tu constates et tu expliques.
 
+Pour installer les dépendances, conseille toujours `npm ci`, jamais `npm install` : `npm ci` suit exactement `package-lock.json` sans le réécrire. Si `package-lock.json` apparaît modifié dans `git status` sans ajout volontaire de dépendance, conseille `git restore package-lock.json` puis `npm ci`.
+
 Réponds ensuite en français, sans tiret cadratin ni demi-cadratin :
 
 1. Un tableau `| Point | État | À faire |`, une ligne par point du script, dans son ordre. État : ✅ OK, ❌ À faire, ⚠️ À surveiller. « À faire » : la commande exacte du script, ou « rien ».
-2. **Par où commencer** : les points ❌ dans l'ordre où les traiter (Node, puis `npm install`, puis `.env`, puis base, puis Mailpit, puis tests), en une liste numérotée de commandes à copier. Signale qu'il faut relancer `npm run dev` après une migration, et `/accueil` à la fin pour vérifier.
+2. **Par où commencer** : les points ❌ dans l'ordre où les traiter (Node, puis `npm ci`, puis `.env`, puis base, puis Mailpit, puis tests), en une liste numérotée de commandes à copier. Signale qu'il faut relancer `npm run dev` après une migration, et `/accueil` à la fin pour vérifier.
 3. Si tout est ✅ : une phrase pour le dire, et renvoie vers [CLAUDE-CODE-EQUIPE.md](CLAUDE-CODE-EQUIPE.md) pour la suite (premier administrateur, tests navigateur).

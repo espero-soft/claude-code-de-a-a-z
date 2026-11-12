@@ -145,10 +145,17 @@ describe("verifierNode", () => {
 });
 
 describe("verifierDependances", () => {
-  test("node_modules absent : npm install", () => {
+  test("node_modules absent : npm ci, jamais npm install", () => {
     const [resultat] = verifierDependances({ nodeModules: false });
     expect(resultat.etat).toBe(A_FAIRE);
-    expect(resultat.action).toMatch(/npm install/);
+    expect(resultat.action).toMatch(/npm ci/);
+    expect(resultat.action).not.toMatch(/npm install/);
+  });
+  test("lock plus récent que l'installation : npm ci", () => {
+    const resultats = verifierDependances({ nodeModules: true, clientPrisma: true, verrouPlusRecent: true });
+    const dependances = resultats.find((r) => r.nom === "Dépendances");
+    expect(dependances.etat).toBe(ATTENTION);
+    expect(dependances.action).toBe("npm ci");
   });
   test("client Prisma absent : prisma generate", () => {
     const resultats = verifierDependances({ nodeModules: true, clientPrisma: false, verrouPlusRecent: false });

@@ -6,7 +6,7 @@ Guide court pour qui arrive sur le projet. Les règles du code et du métier son
 
 ```bash
 nvm use                      # Node 24, comme la CI (.nvmrc)
-npm install                  # dépendances + client Prisma
+npm ci                       # dépendances exactes du lock + client Prisma
 cp .env.example .env         # puis renseigner les clés (voir ci-dessous)
 npx prisma migrate dev       # crée dev.db
 npm run db:seed              # les 4 salles
@@ -14,6 +14,8 @@ mailpit                      # dans un autre terminal : reçoit les codes de con
 export STRIPE_SECRET_KEY=sk_test_…   # pour le serveur MCP stripe (il ne lit pas .env)
 claude                       # accepter les serveurs MCP du projet, puis taper /accueil
 ```
+
+Pour installer ou réinstaller le projet, toujours `npm ci` : il installe exactement ce que dit `package-lock.json`, repart d'un `node_modules` propre et ne réécrit jamais le lock. `npm install` le réécrit selon la version de npm de chacun (drapeaux `dev`, `peer` recalculés), ce qui ajoute du bruit aux PR : le réserver à l'ajout ou au changement volontaire d'une dépendance, commité à part avec `package.json`.
 
 `/accueil` (ou `npm run accueil` sans Claude) vérifie tout cela et dit quoi faire pour chaque point. Il ne montre jamais une valeur de `.env`.
 
