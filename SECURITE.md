@@ -390,3 +390,40 @@ Chaque écriture efface les lignes de plus de 90 jours (`journaliser` puis `purg
 - Vitest `src/app/profil/actions.test.ts` : appareil déconnecté et compte supprimé journalisés, rien quand rien n'a été fait, jamais le code de suppression. `src/lib/roles.test.ts` : `journal` à l'administrateur seul.
 - Contre-épreuves : retirer la purge à l'écriture fait échouer 1 test ; recopier l'événement entier, 2 ; ouvrir `journal` à l'employé, 2.
 - Playwright `e2e/admin-journal.spec.ts` : l'administrateur arrive par le lien « Journal », retrouve le code refusé puis la connexion d'un client, filtre par une partie de l'adresse, aucun code à 6 chiffres sur la page ; l'employé n'a pas le lien et reçoit un 404 ; client 404, visiteur renvoyé vers la connexion ; mobile en cartes, sans défilement de côté.
+
+## 16. Protection de la branche main sur GitHub
+
+Faille relevée au contrôle de conformité : `main` n'avait **aucune** protection (ni règle de branche, ni ruleset). Or, d'après la documentation officielle de GitHub (vérifiée le 12/11/2026) :
+
+- « Repository roles for an organization » : le rôle **Write** permet de « Push to (write) the person or team's assigned repositories » et de « Merge a pull request » ; seul « Push to protected branches » lui est refusé, ce qui ne joue que si la branche est protégée.
+- « Permission levels for a personal account repository » (le cas de ce dépôt) : un collaborateur peut « push (write) changes to the repository » et « Create, merge, and close pull requests ».
+- « About protected branches » : ce sont les protections qui bloquent le forçage (« By default, GitHub blocks force pushes on all protected branches ») et la suppression (« By default, you cannot delete a protected branch ») ; sans contrôle requis, « collaborators can merge the branch at any time ».
+
+Un développeur ajouté avec le droit d'écrire pouvait donc, sur `main` non protégée : pousser directement, **réécrire l'historique par un push forcé**, et fusionner une PR sans relecture ni tests. Les hooks de `.claude/` ne protègent que les sessions Claude Code, pas un `git push` lancé à la main.
+
+### 16.1 Ce qui est appliqué
+
+Deux rulesets, versionnés dans `.github/rulesets/` et appliqués par `bash scripts/proteger-main.sh` (administrateur du dépôt, idempotent). Ils ciblent `~DEFAULT_BRANCH` et `refs/heads/main`. Deux rulesets et non un, car un contournement vaut pour **tout** un ruleset : le forçage et la suppression doivent rester interdits même à celui qui peut contourner la revue.
+
+| Ruleset | Règles | Contournement |
+|---|---|---|
+| `main : ni forçage ni suppression` (`main-integrite.json`) | `deletion`, `non_fast_forward` | **aucun**, administrateur compris |
+| `main : demande de fusion, approbation et tests` (`main-revue.json`) | `pull_request` : 1 approbation, approbations annulées par un nouveau push, approbation par quelqu'un d'autre que l'auteur du dernier push ; `required_status_checks` : « Lint et tests » (GitHub Actions, id 15368), branche à jour exigée | rôle **administrateur du dépôt**, mode « For pull requests only » : seulement en fusionnant une PR, jamais par un push direct |
+
+Le contrôle « Lint et tests » est le job de `.github/workflows/verifications.yml` (`npm ci`, `npm run lint`, `npm test`, Node de `.nvmrc`), lancé sur chaque PR. **Ne pas renommer ce job** sans mettre à jour `main-revue.json` puis relancer le script : sinon plus aucune PR ne peut fusionner.
+
+### 16.2 Le flux de Claude
+
+- `claude-pr.yml` ne s'exécute pas si la branche **source** de la PR est `main` (ou la branche par défaut), et l'étape de push le revérifie. Sans cela, une PR de `main` vers une autre branche, étiquetée `claude`, faisait pousser le job sur `main`. Le ruleset refuse de toute façon ce push : le `GITHUB_TOKEN` n'a aucun contournement.
+- Un push fait avec le `GITHUB_TOKEN` ne déclenche pas `pull_request` : le job `relancer-verifications` (seul à avoir `actions: write`, jamais celui où Claude travaille) relance « Lint et tests » sur la branche par `workflow_dispatch`.
+- L'approbation exigée est humaine : le réglage « Allow GitHub Actions to create and approve pull requests » est désactivé (`can_approve_pull_request_reviews: false`), et une approbation ne compte que venant d'un compte ayant le droit d'écrire.
+
+### 16.3 Ce que l'on accepte
+
+- **Contournement d'urgence** : seul le responsable (dans un dépôt personnel, le propriétaire est le seul administrateur) peut fusionner une PR sans approbation ni tests. Il reste visible dans Rule Insights (Settings > Rules > Insights, « Actions where someone has bypassed one or more rulesets ») et par l'API `GET /repos/{owner}/{repo}/rulesets/rule-suites` (vérifiée accessible sur ce dépôt).
+- **L'administrateur peut modifier ou désactiver un ruleset** : c'est inhérent à GitHub. Le contenu attendu est dans git ; `scripts/verifier-protection-main.sh` détecte un écart.
+- L'auteur d'une PR ne peut pas l'approuver lui-même : avec deux personnes, chacune relit l'autre ; seul, le responsable passe par le contournement, visible.
+
+### 16.4 Preuves
+
+`bash scripts/verifier-protection-main.sh` lit, **sans rien écrire**, les règles que GitHub applique effectivement à `main` (`GET /repos/{owner}/{repo}/rules/branches/main`) et le contournement de chaque ruleset, et échoue si une règle manque. Contre-épreuve : lancé avant `proteger-main.sh`, il échouait (« règles absentes sur main : deletion non_fast_forward pull_request required_status_checks »).

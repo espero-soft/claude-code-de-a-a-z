@@ -34,7 +34,8 @@ Ensuite, si besoin : `npm run admin:creer -- <votre e-mail>` (premier administra
 | `.claude/skills/` | `nouvel-ecran` (page + lien + test e2e), `tests-regle-metier`. |
 | `.claude/agents/` | `relecteur-regles` : relit un changement au regard de R1 à R6, en lecture seule. |
 | `.mcp.json` | Serveurs MCP : `sqlite` (lecture de `dev.db`), `playwright`, `regles-metier` (maison), `stripe`. |
-| `.github/workflows/` | Revue automatique des PR par Claude ; étiquette `claude` sur une PR pour lui confier le travail. |
+| `.github/workflows/` | Revue automatique des PR par Claude ; étiquette `claude` sur une PR pour lui confier le travail. « Lint et tests » (`verifications.yml`) sur chaque PR, obligatoire pour fusionner. |
+| `.github/rulesets/` | Protection de `main` : pas de push direct, PR avec une approbation et tests au vert, ni forçage ni suppression (SECURITE.md section 16). |
 | `plugins/`, `.claude-plugin/` | Les mêmes outils en plugin, pour **d'autres** projets. Ne pas l'installer ici (hooks en double). |
 
 Une modification de ces fichiers passe par une PR, comme le code.

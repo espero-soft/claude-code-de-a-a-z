@@ -20,11 +20,18 @@ concurrency:
 
 jobs:
   claude:
+    outputs:
+      pousse: ${{ steps.push.outputs.pousse }}
     # Seulement l'étiquette « claude », et seulement pour une branche de ce dépôt
     # (pas de fork : on ne pourrait pas y pousser, et les secrets n'y sont pas transmis).
+    # Jamais sur main : une PR dont la branche SOURCE est main (de main vers une autre
+    # branche) ferait pousser le job sur main. L'étape de push le revérifie, et le
+    # ruleset de main refuse de toute façon le push direct (GITHUB_TOKEN compris).
     if: >-
       github.event.label.name == 'claude' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref != 'main' &&
+      github.event.pull_request.head.ref != github.event.repository.default_branch
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -90,8 +97,13 @@ jobs:
         env:
           # Passés par l'environnement, jamais interpolés dans le script (injection).
           BRANCHE: ${{ github.event.pull_request.head.ref }}
+          BRANCHE_PAR_DEFAUT: ${{ github.event.repository.default_branch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ "$BRANCHE" = "main" ] || [ "$BRANCHE" = "$BRANCHE_PAR_DEFAUT" ]; then
+            echo "::error::Le workflow ne pousse jamais sur $BRANCHE ; rien n'est poussé."
+            exit 1
+          fi
           if [ "$(git rev-parse --abbrev-ref HEAD)" != "$BRANCHE" ]; then
             echo "::error::HEAD n'est plus sur la branche $BRANCHE ; rien n'est poussé."
             exit 1
@@ -106,6 +118,7 @@ jobs:
           git log --oneline FETCH_HEAD..HEAD
           npm test
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCHE}"
+          echo "pousse=oui" >> "$GITHUB_OUTPUT"
 
       - name: Commenter le résultat du push
         if: always() && steps.claude.outcome == 'success'
@@ -124,3 +137,21 @@ jobs:
             MESSAGE="Push par le workflow : $NOUVEAUX commit(s) poussé(s) sur \`$BRANCHE\` après une nouvelle passe de \`npm test\`."
           fi
           gh pr comment "$PR" --body "$MESSAGE"
+
+  # Un push fait avec le GITHUB_TOKEN ne déclenche pas « pull_request » : sans cette
+  # relance, le contrôle obligatoire « Lint et tests » manquerait sur le nouveau commit
+  # et la PR resterait bloquée. Job séparé : le droit « actions: write » ne sert qu'à
+  # cette relance et n'est jamais donné au job où Claude travaille.
+  relancer-verifications:
+    needs: claude
+    if: needs.claude.outputs.pousse == 'oui'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write   # lancer verifications.yml, rien d'autre
+    steps:
+      - name: Relancer « Lint et tests » sur la branche de la PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCHE: ${{ github.event.pull_request.head.ref }}
+        run: gh workflow run verifications.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCHE"

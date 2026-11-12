@@ -1,0 +1,55 @@
+# Contrôle obligatoire avant toute fusion dans main : lint puis tests Vitest,
+# sur chaque pull request (forks compris : aucun secret n'est utilisé).
+# Le nom du job, « Lint et tests », est exigé tel quel par le ruleset
+# .github/rulesets/main-revue.json : le renommer bloque toutes les fusions
+# tant que le ruleset n'est pas mis à jour (scripts/proteger-main.sh).
+name: Vérifications
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Relance par claude-pr.yml après le push de Claude : un push fait avec le
+  # GITHUB_TOKEN ne déclenche pas « pull_request », alors que workflow_dispatch, si.
+  workflow_dispatch:
+
+# Aucun droit par défaut ; le job ne reçoit que ce dont il a besoin.
+permissions: {}
+
+# Un nouveau push rend le contrôle en cours obsolète.
+concurrency:
+  group: verifications-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-et-tests:
+    name: Lint et tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read   # lire le code, rien de plus
+    env:
+      # Lu par prisma.config.ts lors de « prisma generate » (postinstall).
+      # Les tests sur base réelle créent leur propre base temporaire.
+      DATABASE_URL: file:./dev.db
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # Aucun identifiant git laissé sur le disque : rien ne peut être poussé.
+          persist-credentials: false
+
+      - name: Installer Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          # Même version que le projet : better-sqlite3 est un module natif.
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
