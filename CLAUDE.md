@@ -20,6 +20,7 @@ npm test                     # Vitest, une passe (vitest.config.mts : alias @ ve
 npx vitest run src/lib/reservation.test.ts       # un seul fichier
 npx vitest run -t "refuse le samedi"             # un seul test, par son nom
 
+npm ci                       # installe les dépendances exactes du lock, sans le réécrire (npm install : seulement pour ajouter une dépendance)
 npm run accueil              # vérifie l'installation (commande /accueil) ; n'affiche jamais une valeur de .env
 cp .env.example .env         # puis renseigner STRIPE_SECRET_KEY (clé de test)
 npx prisma migrate dev       # crée dev.db et applique les migrations
@@ -31,7 +32,7 @@ npm run deuxieme-facteur:reinitialiser -- <e-mail>  # personnel ayant perdu tél
 E2E_PORT=3100 npx playwright test                # tests navigateur (Mailpit requis pour la connexion par code)
 ```
 
-`npm install` lance `prisma generate` (postinstall). Le client Prisma est généré dans `src/generated/prisma` (ignoré par git) et s'importe depuis `@/generated/prisma/client`, pas depuis `@prisma/client`. Relancer `npx prisma generate` si ce dossier manque.
+`npm ci` (comme `npm install`) lance `prisma generate` (postinstall). Le client Prisma est généré dans `src/generated/prisma` (ignoré par git) et s'importe depuis `@/generated/prisma/client`, pas depuis `@prisma/client`. Relancer `npx prisma generate` si ce dossier manque.
 
 ## Règles métier (cahier des charges)
 

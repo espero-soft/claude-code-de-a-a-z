@@ -15,9 +15,12 @@ Tout au long de la formation, nous construisons ensemble, avec Claude Code, une 
 ```bash
 git clone https://github.com/espero-soft/claude-code-de-a-a-z.git
 cd claude-code-de-a-a-z
-npm install
+nvm use
+npm ci
 npm run dev
 ```
+
+`npm ci` installe exactement les versions de `package-lock.json` sans le réécrire. Gardez `npm install` pour ajouter volontairement une dépendance.
 
 Ouvrez ensuite [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 
