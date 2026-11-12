@@ -72,7 +72,9 @@ sudo install -d -o reunea -g reunea -m 700 /var/lib/reunea
 sudo install -d -o root -g reunea -m 750 /etc/reunea
 
 # Dépôt public, clone HTTPS en lecture seule (décision D14).
-sudo -u reunea git clone https://github.com/espero-soft/claude-code-de-a-a-z.git /srv/reunea/repo
+# --branch : main est le point de départ vierge des apprenants, sans
+# scripts/production/ ; le premier deployer.sh se lance depuis ce clone.
+sudo -u reunea git clone --branch module-12B https://github.com/espero-soft/claude-code-de-a-a-z.git /srv/reunea/repo
 
 # Secrets : partir du modèle, remplir à la main.
 sudo install -o root -g reunea -m 640 /srv/reunea/repo/deploiement/reunea.env.example /etc/reunea/reunea.env
@@ -90,16 +92,27 @@ sudo systemctl restart caddy
 
 ## 4. Première livraison
 
-Sur le poste : la PR est fusionnée dans `main`, puis on pose l'étiquette (convention `v<année>.<mois>.<jour>-<n>`) :
+Ce dépôt est celui d'une formation : **`main` reste le point de départ vierge des apprenants, on n'y fusionne jamais**. On livre donc depuis la branche du module (ici `module-12B`), ou depuis `main` s'il le faut ; la branche est toujours donnée à `deployer.sh`.
+
+Sur le poste, on pose une étiquette **annotée** (`-a`, convention `v<année>.<mois>.<jour>-<n>`) sur le dernier commit de la branche, puis on pousse la branche et l'étiquette :
 
 ```bash
-git switch main && git pull && git tag v2026.11.12-1 && git push origin v2026.11.12-1
+git switch module-12B
+git push origin module-12B                      # la branche telle qu'elle sera vérifiée
+git tag -a v2026.11.12-1 -m "Démonstration du module 12B"
+git push origin v2026.11.12-1
 ```
+
+`deployer.sh` refuse :
+- une étiquette absente de GitHub (posée seulement en local, ou dans le clone du serveur) ;
+- une étiquette légère (`git tag` sans `-a`) ;
+- une étiquette dont le commit n'est pas sur la branche annoncée **telle qu'elle est sur GitHub**, donc pas poussée ;
+- une branche autre que `main` ou `module-<n>`.
 
 Sur le serveur :
 
 ```bash
-sudo bash /srv/reunea/repo/scripts/production/deployer.sh v2026.11.12-1
+sudo bash /srv/reunea/repo/scripts/production/deployer.sh v2026.11.12-1 module-12B
 cd /srv/reunea/current
 sudo -u reunea -H npm run db:seed                      # salles seulement : pas de réservation de démonstration en production
 sudo -u reunea -H npm run admin:creer -- <e-mail>      # puis connexion par code et enrôlement TOTP
@@ -113,7 +126,7 @@ Faire ensuite la **recette** décrite dans `design/PLAN-PRODUCTION.md`, section 
 
 | Besoin | Commande |
 |---|---|
-| Livrer une version | `sudo bash /srv/reunea/current/scripts/production/deployer.sh <étiquette>` |
+| Livrer une version | `sudo bash /srv/reunea/current/scripts/production/deployer.sh <étiquette> <branche>` (ex. `v2026.11.13-1 module-12B`) |
 | Revenir à la version précédente (code seul) | `sudo bash /srv/reunea/current/scripts/production/revenir.sh` |
 | Santé | `curl -s https://<sous-domaine>/api/sante` (doit répondre `{"ok":true}`) |
 | Journaux | `journalctl -u reunea -f` ; sauvegardes : `journalctl -u reunea-sauvegarde` |

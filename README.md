@@ -51,7 +51,7 @@ Réunéa tourne en démonstration sur un petit serveur : Ubuntu, Caddy pour le H
 - L'installation pas à pas et les commandes du quotidien : [deploiement/LISEZMOI.md](deploiement/LISEZMOI.md).
 - Les scripts (livrer, revenir en arrière, sauvegarder, restaurer, contrôle de fumée) : `scripts/production/`.
 
-Une version se livre depuis une **étiquette posée sur `main`** (`v<année>.<mois>.<jour>-<n>`), jamais depuis une branche. Le serveur refuse de démarrer si sa configuration est incomplète, et `/api/sante` indique s'il répond.
+Une version se livre depuis une **étiquette annotée et poussée sur GitHub** (`v<année>.<mois>.<jour>-<n>`), posée sur la branche du module (par exemple `module-12B`) : `main` reste le point de départ vierge et ne reçoit jamais de fusion. Le serveur refuse de démarrer si sa configuration est incomplète, et `/api/sante` indique s'il répond.
 
 ## Organisation du dépôt
 

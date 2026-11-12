@@ -1,25 +1,35 @@
 #!/usr/bin/env bash
-# Livre une version étiquetée de main sur le serveur (design/PLAN-PRODUCTION.md, section 7).
+# Livre une version étiquetée sur le serveur (design/PLAN-PRODUCTION.md, section 7).
 #
-#   sudo bash /srv/reunea/current/scripts/production/deployer.sh v2026.11.12-1
-#   (premier déploiement : sudo bash /srv/reunea/repo/scripts/production/deployer.sh <étiquette>)
+#   sudo bash /srv/reunea/current/scripts/production/deployer.sh v2026.11.12-1 module-12B
+#   (premier déploiement : sudo bash /srv/reunea/repo/scripts/production/deployer.sh <étiquette> <branche>)
 #
-# 1. récupère l'étiquette (dépôt public, clone HTTPS en lecture) ; refusée si
-#    elle n'est pas sur main ;
+# Dépôt de formation : main reste le point de départ vierge des apprenants et
+# ne reçoit jamais de fusion. On livre donc depuis la branche du module
+# (module-12B...), ou depuis main ; la branche est toujours dite explicitement.
+#
+# 1. vérifie sur GitHub (dépôt public, clone HTTPS en lecture) que
+#    l'étiquette existe, qu'elle est ANNOTÉE (git tag -a : auteur, date,
+#    message), et que son commit est sur la branche telle qu'elle est sur
+#    GitHub (une branche jamais poussée ne compte pas) ;
 # 2. extrait la version dans releases/<sha>, lie .env, `npm ci` et build
 #    (l'ancienne version sert toujours ; un échec ici ne touche à rien) ;
 # 3. sauvegarde la base, puis `prisma migrate deploy` ;
 # 4. bascule `current`, redémarre le service, contrôle de fumée ;
 #    en cas d'échec, retour automatique à la version précédente.
 #
-# Étiquettes : v<année>.<mois>.<jour>-<n> (décision D15), posées sur main après fusion.
+# Étiquettes : v<année>.<mois>.<jour>-<n> (décision D15).
 set -euo pipefail
 DOSSIER_SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
 source "$DOSSIER_SCRIPTS/commun.sh"
 
+USAGE="usage : deployer.sh v<AAAA>.<MM>.<JJ>-<n> <branche>   (branche : main ou module-<n>, ex. module-12B)"
 etiquette="${1:-}"
+branche="${2:-}"
 [[ "$etiquette" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}-[0-9]+$ ]] \
-  || echouer "usage : deployer.sh v<AAAA>.<MM>.<JJ>-<n> (étiquette reçue : '${etiquette}')"
+  || echouer "$USAGE (étiquette reçue : '${etiquette}')"
+[[ "$branche" =~ ^(main|module-[0-9]+[A-Za-z]*)$ ]] \
+  || echouer "$USAGE (branche reçue : '${branche}')"
 
 DEPOT="$REUNEA_RACINE/repo"
 [ -d "$DEPOT/.git" ] || echouer "dépôt absent : $DEPOT (voir deploiement/LISEZMOI.md, section 3)"
@@ -27,14 +37,27 @@ DEPOT="$REUNEA_RACINE/repo"
 FUMEE="${REUNEA_FUMEE:-$DOSSIER_SCRIPTS/fumee.sh}"
 SAUVEGARDER="${REUNEA_SAUVEGARDER:-$DOSSIER_SCRIPTS/sauvegarder-base.sh}"
 
-etape "Récupération de $etiquette"
-en_service git -C "$DEPOT" fetch --quiet --tags --force origin main
 # git sous l'utilisateur du service, propriétaire du dépôt : en root, git
 # refuserait un dépôt qui ne lui appartient pas (« dubious ownership »).
-sha="$(en_service git -C "$DEPOT" rev-parse --verify --quiet "refs/tags/$etiquette^{commit}")" \
-  || echouer "étiquette inconnue : $etiquette"
-en_service git -C "$DEPOT" merge-base --is-ancestor "$sha" origin/main \
-  || echouer "$etiquette ($sha) n'est pas sur main : on ne livre que ce qui a été fusionné"
+etape "Vérification de $etiquette sur GitHub (branche $branche)"
+# La branche telle qu'elle est sur GitHub, pas une copie locale.
+en_service git -C "$DEPOT" fetch --quiet --tags --force origin \
+  "+refs/heads/$branche:refs/remotes/origin/$branche" \
+  || echouer "branche $branche introuvable sur GitHub (a-t-elle été poussée ?)"
+
+# GitHub fait foi : une étiquette présente seulement dans le clone du serveur
+# est refusée. Pour une étiquette annotée, ls-remote donne l'objet étiquette.
+distant="$(en_service git -C "$DEPOT" ls-remote --tags origin "refs/tags/$etiquette")" \
+  || echouer "GitHub injoignable : impossible de vérifier l'étiquette $etiquette"
+objet="$(printf '%s\n' "$distant" | awk -v ref="refs/tags/$etiquette" '$2 == ref { print $1 }')"
+[ -n "$objet" ] || echouer "étiquette $etiquette absente de GitHub (git push origin $etiquette)"
+[ "$(en_service git -C "$DEPOT" cat-file -t "$objet")" = "tag" ] \
+  || echouer "étiquette $etiquette légère : la recréer annotée (git tag -a $etiquette -m \"…\")"
+
+sha="$(en_service git -C "$DEPOT" rev-parse --verify --quiet "$objet^{commit}")" \
+  || echouer "étiquette $etiquette illisible"
+en_service git -C "$DEPOT" merge-base --is-ancestor "$sha" "refs/remotes/origin/$branche" \
+  || echouer "$etiquette ($sha) n'est pas sur la branche $branche de GitHub"
 
 destination="$RELEASES/$sha"
 precedente="$(version_courante)"
@@ -69,7 +92,7 @@ en_service touch "$destination"
 service restart
 
 if bash "$FUMEE"; then
-  noter_livraison "livraison $etiquette $sha"
+  noter_livraison "livraison $etiquette $sha ($branche)"
   etape "$etiquette est en service."
 else
   if [ -n "$precedente" ]; then
@@ -77,10 +100,10 @@ else
     basculer_vers "$precedente"
     en_service touch "$destination/.retiree"
     service restart
-    noter_livraison "echec $etiquette $sha, retour $(basename "$precedente")"
+    noter_livraison "echec $etiquette $sha ($branche), retour $(basename "$precedente")"
     bash "$FUMEE" || true
   else
-    noter_livraison "echec $etiquette $sha (premier déploiement, rien vers quoi revenir)"
+    noter_livraison "echec $etiquette $sha ($branche, premier déploiement, rien vers quoi revenir)"
   fi
   echouer "livraison de $etiquette annulée (voir journalctl -u $REUNEA_SERVICE)"
 fi

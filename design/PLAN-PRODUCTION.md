@@ -253,7 +253,7 @@ Plus aucune valeur d'exemple ne doit rester (`reunea.test`, `localhost`).
 1. Serveur créé et sécurisé (sections 3 et 4), DNS en place.
 2. Clé de déploiement GitHub **en lecture seule** pour `/srv/reunea/repo`, ou dépôt public (D14).
 3. Écrire `/etc/reunea/reunea.env`.
-4. `deployer.sh <tag>` (étapes en 7.1), qui crée la base avec `prisma migrate deploy` sur un fichier vide.
+4. `deployer.sh <étiquette> <branche>` (étapes en 7.1), qui crée la base avec `prisma migrate deploy` sur un fichier vide.
 5. Seed de production, **sans** démonstration (2.1).
 6. `npm run admin:creer -- <adresse>` sur le serveur, puis connexion par code (premier vrai e-mail Brevo) et enrôlement TOTP. Les codes de secours sont rangés dans le gestionnaire de mots de passe de l'entreprise.
 7. **Recette manuelle avant d'annoncer l'adresse** :
@@ -316,10 +316,11 @@ Si on le perd, la base restaurée reste lisible, mais les secrets TOTP et les co
 ## 7. Livraison d'une nouvelle version
 
 ### 7.1 Chemin normal
-1. Branche, PR, CI « Lint et tests » au vert (avec le build, voir 2.9), approbation humaine, fusion dans `main`. Jamais de push sur `main`.
-2. Étiquette de version sur `main` (convention de nommage : D15).
-3. Sur le serveur, `scripts/production/deployer.sh <étiquette>` :
-   1. `git fetch` et extraction de l'étiquette dans `releases/<sha>/` ; refus si elle n'est pas sur `main`.
+1. **Contrainte du dépôt de formation** : `main` reste le point de départ vierge des apprenants et ne reçoit jamais de fusion. On livre depuis la branche du module (ici `module-12B`), poussée sur GitHub. Jamais de push sur `main`.
+2. Étiquette **annotée** (`git tag -a`, convention D15) sur le commit à livrer de cette branche, poussée sur GitHub.
+3. Sur le serveur, `scripts/production/deployer.sh <étiquette> <branche>` (branche `main` ou `module-<n>`, toujours explicite) :
+   1. Vérifications sur GitHub, qui fait foi plutôt que le clone du serveur : l'étiquette existe (`git ls-remote`), elle est annotée, et son commit est sur la branche **telle qu'elle est sur GitHub**. Puis extraction dans `releases/<sha>/`.
+   - Ce qu'on accepte : sans fusion dans `main`, la protection de `main` (PR, approbation, CI ; SECURITE.md, section 16) ne couvre pas ce qui est livré. Ce qui la remplace : l'étiquette annotée et poussée (qui, quand, pourquoi), la CI de la PR de la branche si elle existe, et le contrôle de fumée.
    2. Lien `.env` vers `/etc/reunea/reunea.env`.
    3. `npm ci` et `NEXT_DEPLOYMENT_ID=<sha> npm run build`. L'ancienne version sert toujours ; si le build échoue, on s'arrête là sans rien avoir touché.
    4. Sauvegarde de la base nommée avec le SHA (6.2).
@@ -387,7 +388,7 @@ Recréer un VPS (sections 3 et 4), déployer la dernière étiquette, restaurer 
 | D12 | Node.js | Dépôt APT, version 24 figée | `LISEZMOI.md`, section 2 |
 | D13 | Garde-fous Claude Code | `ask` | `.claude/settings.json` |
 | D14 | Dépôt | Public, clone HTTPS en lecture | `LISEZMOI.md`, section 3 |
-| D15 | Étiquettes | `v<année>.<mois>.<jour>-<n>` | `deployer.sh` refuse les autres |
+| D15 | Étiquettes | `v<année>.<mois>.<jour>-<n>`, **annotées**, poussées sur GitHub, sur la branche du module (`main` reste vierge) | `deployer.sh <étiquette> <branche>` refuse les autres |
 | D16 | Livraison | Manuelle | `deployer.sh` |
 | D17 | Préproduction | Non | |
 | D18 | Mode WAL | Non | |

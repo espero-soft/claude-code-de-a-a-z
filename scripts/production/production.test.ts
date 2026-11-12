@@ -323,8 +323,17 @@ describe("revenir.sh", () => {
 });
 
 describe("deployer.sh", () => {
-  const ETIQUETTE = "v2026.11.12-1";
+  // Comme le dépôt de la formation : main reste le point de départ vierge, la
+  // version livrée est sur la branche du module.
+  const BRANCHE = "module-12B";
+  const ETIQUETTE = "v2026.11.12-1"; // annotée, sur module-12B, sur « GitHub »
+  const ETIQUETTE_MAIN = "v2026.11.10-1"; // annotée, sur main
+  const ETIQUETTE_AUTRE_BRANCHE = "v2026.11.12-2"; // annotée, sur module-11 seulement
+  const ETIQUETTE_LEGERE = "v2026.11.12-3"; // légère, sur module-12B
+  const ETIQUETTE_LOCALE = "v2026.11.12-4"; // annotée, dans le clone du serveur seulement
+  let shaModule: string;
   let shaMain: string;
+  let depot: string;
 
   function git(dans: string, ...args: string[]): string {
     return execFileSync("git", ["-C", dans, ...args], {
@@ -339,24 +348,37 @@ describe("deployer.sh", () => {
     }).trim();
   }
 
+  function commit(dans: string, fichier: string, message: string): string {
+    writeFileSync(join(dans, fichier), `${message}\n`);
+    git(dans, "add", ".");
+    git(dans, "commit", "--quiet", "-m", message);
+    return git(dans, "rev-parse", "HEAD");
+  }
+
   beforeEach(() => {
-    // Dépôt « GitHub » : main étiquetée, et une branche non fusionnée étiquetée aussi.
+    // Dépôt « GitHub » (le dépôt d'origine du clone du serveur).
     const origine = join(dossier, "origine");
     mkdirSync(origine);
     git(origine, "init", "--quiet", "--initial-branch=main");
     writeFileSync(join(origine, "package.json"), "{}\n");
-    git(origine, "add", ".");
-    git(origine, "commit", "--quiet", "-m", "Version livrée");
-    git(origine, "tag", ETIQUETTE);
-    shaMain = git(origine, "rev-parse", "HEAD");
-    git(origine, "checkout", "--quiet", "-b", "pas-fusionnee");
-    writeFileSync(join(origine, "brouillon.txt"), "pas relu\n");
-    git(origine, "add", ".");
-    git(origine, "commit", "--quiet", "-m", "Non fusionné");
-    git(origine, "tag", "v2026.11.12-2");
+    shaMain = commit(origine, "LISEZMOI.md", "Point de départ des apprenants");
+    git(origine, "tag", "-a", ETIQUETTE_MAIN, "-m", "Départ");
+
+    git(origine, "checkout", "--quiet", "-b", BRANCHE);
+    shaModule = commit(origine, "module.txt", "Module 12B");
+    git(origine, "tag", "-a", ETIQUETTE, "-m", "Démonstration du module 12B");
+    git(origine, "tag", ETIQUETTE_LEGERE);
+
+    git(origine, "checkout", "--quiet", "-b", "module-11", "main");
+    commit(origine, "module-11.txt", "Module 11");
+    git(origine, "tag", "-a", ETIQUETTE_AUTRE_BRANCHE, "-m", "Module 11");
     git(origine, "checkout", "--quiet", "main");
+
     mkdirSync(join(dossier, "srv"));
-    execFileSync("git", ["clone", "--quiet", origine, join(dossier, "srv", "repo")]);
+    depot = join(dossier, "srv", "repo");
+    execFileSync("git", ["clone", "--quiet", origine, depot]);
+    // Étiquette posée dans le clone du serveur, jamais poussée.
+    git(depot, "tag", "-a", ETIQUETTE_LOCALE, "-m", "Pas sur GitHub", shaModule);
 
     programme("npm", `echo "npm $* DEPLOIEMENT=\${NEXT_DEPLOYMENT_ID:-}" >> "${appels}"`);
     programme("npx", `echo "npx $*" >> "${appels}"`);
@@ -364,38 +386,81 @@ describe("deployer.sh", () => {
     programme("fumee-ko", `echo "fumee" >> "${appels}"; exit 1`);
   });
 
-  it("refuse une étiquette qui ne suit pas la convention", async () => {
-    const resultat = await lancer("deployer.sh", ["main"]);
-    expect(resultat.code).not.toBe(0);
-    expect(resultat.sortie).toContain("usage : deployer.sh");
-  });
+  const FUMEE_OK = () => ({ REUNEA_FUMEE: join(bin, "fumee-ok") });
 
-  it("refuse une étiquette posée hors de main", async () => {
-    const resultat = await lancer("deployer.sh", ["v2026.11.12-2"], { REUNEA_FUMEE: join(bin, "fumee-ok") });
+  // Refus : rien n'est construit, rien n'est basculé.
+  async function attendreRefus(args: string[], message: string | RegExp) {
+    const resultat = await lancer("deployer.sh", args, FUMEE_OK());
     expect(resultat.code).not.toBe(0);
-    expect(resultat.sortie).toContain("n'est pas sur main");
+    expect(resultat.sortie).toMatch(message);
     expect(existsSync(join(dossier, "srv", "current"))).toBe(false);
+    expect(journalAppels()).toEqual([]);
+  }
+
+  it("refuse une étiquette qui ne suit pas la convention", async () => {
+    await attendreRefus(["main", BRANCHE], "usage : deployer.sh");
   });
 
-  it("livre la version : build, sauvegarde, migration, bascule, redémarrage, fumée", async () => {
+  it("exige la branche, et seulement main ou une branche de module", async () => {
+    await attendreRefus([ETIQUETTE], "branche reçue : ''");
+    await attendreRefus([ETIQUETTE, "pas-fusionnee"], "branche reçue : 'pas-fusionnee'");
+    await attendreRefus([ETIQUETTE, "main;id"], "usage : deployer.sh");
+  });
+
+  it("refuse une branche absente de GitHub", async () => {
+    await attendreRefus([ETIQUETTE, "module-99"], "branche module-99 introuvable sur GitHub");
+  });
+
+  it("refuse une étiquette présente seulement dans le clone du serveur", async () => {
+    await attendreRefus([ETIQUETTE_LOCALE, BRANCHE], `étiquette ${ETIQUETTE_LOCALE} absente de GitHub`);
+  });
+
+  it("refuse avec un message clair quand GitHub ne répond plus", async () => {
+    // Le fetch passe, puis ls-remote échoue : faux git qui appelle le vrai,
+    // sauf pour « git -C <dépôt> ls-remote ».
+    const vraiGit = execFileSync("bash", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+    programme("git", `if [ "$3" = "ls-remote" ]; then exit 128; fi\nexec "${vraiGit}" "$@"`);
+    await attendreRefus([ETIQUETTE, BRANCHE], "GitHub injoignable");
+  });
+
+  it("refuse une étiquette légère, même sur la bonne branche", async () => {
+    await attendreRefus([ETIQUETTE_LEGERE, BRANCHE], `étiquette ${ETIQUETTE_LEGERE} légère`);
+  });
+
+  it("refuse une étiquette posée sur une autre branche que celle annoncée", async () => {
+    await attendreRefus(
+      [ETIQUETTE_AUTRE_BRANCHE, BRANCHE],
+      `n'est pas sur la branche ${BRANCHE} de GitHub`,
+    );
+    // L'étiquette du module n'est pas non plus sur main, restée vierge.
+    await attendreRefus([ETIQUETTE, "main"], "n'est pas sur la branche main de GitHub");
+  });
+
+  it("livre aussi une étiquette annotée de main", async () => {
+    const resultat = await lancer("deployer.sh", [ETIQUETTE_MAIN, "main"], FUMEE_OK());
+    expect(resultat.code, resultat.sortie).toBe(0);
+    expect(courante()).toBe(join(dossier, "srv", "releases", shaMain));
+  });
+
+  it("livre la version du module : build, sauvegarde, migration, bascule, redémarrage, fumée", async () => {
     creerBase();
-    const resultat = await lancer("deployer.sh", [ETIQUETTE], { REUNEA_FUMEE: join(bin, "fumee-ok") });
+    const resultat = await lancer("deployer.sh", [ETIQUETTE, BRANCHE], FUMEE_OK());
     expect(resultat.code, resultat.sortie).toBe(0);
 
-    const destination = join(dossier, "srv", "releases", shaMain);
+    const destination = join(dossier, "srv", "releases", shaModule);
     expect(courante()).toBe(destination);
     expect(readlinkSync(join(destination, ".env"))).toBe(join(dossier, "etc", "reunea.env"));
-    expect(existsSync(join(destination, "package.json"))).toBe(true);
+    expect(existsSync(join(destination, "module.txt"))).toBe(true);
     expect(journalAppels()).toEqual([
       "npm ci --no-audit --no-fund DEPLOIEMENT=",
-      `npm run build DEPLOIEMENT=${shaMain}`,
+      `npm run build DEPLOIEMENT=${shaModule}`,
       "npx prisma migrate deploy",
       "systemctl restart reunea",
       "fumee",
     ]);
     expect(sauvegardes().some((nom) => nom.endsWith(`-avant-${ETIQUETTE}.db.gz`))).toBe(true);
     expect(readFileSync(join(dossier, "srv", "livraisons.log"), "utf8")).toContain(
-      `livraison ${ETIQUETTE} ${shaMain}`,
+      `livraison ${ETIQUETTE} ${shaModule} (${BRANCHE})`,
     );
   });
 
@@ -403,11 +468,11 @@ describe("deployer.sh", () => {
     const precedente = join(creerVersions("aaaaaaa1"), "aaaaaaa1");
     symlinkSync(precedente, join(dossier, "srv", "current"));
 
-    const resultat = await lancer("deployer.sh", [ETIQUETTE], { REUNEA_FUMEE: join(bin, "fumee-ko") });
+    const resultat = await lancer("deployer.sh", [ETIQUETTE, BRANCHE], { REUNEA_FUMEE: join(bin, "fumee-ko") });
     expect(resultat.code).not.toBe(0);
     expect(resultat.sortie).toContain("livraison de v2026.11.12-1 annulée");
     expect(courante()).toBe(precedente);
-    expect(existsSync(join(dossier, "srv", "releases", shaMain, ".retiree"))).toBe(true);
+    expect(existsSync(join(dossier, "srv", "releases", shaModule, ".retiree"))).toBe(true);
     expect(journalAppels().filter((appel) => appel.startsWith("systemctl"))).toEqual([
       "systemctl restart reunea",
       "systemctl restart reunea",
@@ -415,8 +480,8 @@ describe("deployer.sh", () => {
   });
 
   it("refuse de relivrer la version déjà en service", async () => {
-    expect((await lancer("deployer.sh", [ETIQUETTE], { REUNEA_FUMEE: join(bin, "fumee-ok") })).code).toBe(0);
-    const resultat = await lancer("deployer.sh", [ETIQUETTE], { REUNEA_FUMEE: join(bin, "fumee-ok") });
+    expect((await lancer("deployer.sh", [ETIQUETTE, BRANCHE], FUMEE_OK())).code).toBe(0);
+    const resultat = await lancer("deployer.sh", [ETIQUETTE, BRANCHE], FUMEE_OK());
     expect(resultat.code).not.toBe(0);
     expect(resultat.sortie).toContain("déjà en service");
   });
