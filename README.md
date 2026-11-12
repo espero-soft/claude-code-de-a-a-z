@@ -21,6 +21,8 @@ npm run dev
 
 Ouvrez ensuite [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 
+Vous rejoignez l'équipe ? Lisez [CLAUDE-CODE-EQUIPE.md](CLAUDE-CODE-EQUIPE.md), puis lancez `/accueil` dans Claude Code (ou `npm run accueil`) pour vérifier votre installation.
+
 > **Important :** clonez le projet dans un dossier dont le chemin ne contient pas le caractère « : ». Sur macOS et Linux, ce caractère empêche npm de trouver ses outils (erreur `next: command not found`).
 
 ## Base de données

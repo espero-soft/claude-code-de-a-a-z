@@ -20,6 +20,7 @@ npm test                     # Vitest, une passe (vitest.config.mts : alias @ ve
 npx vitest run src/lib/reservation.test.ts       # un seul fichier
 npx vitest run -t "refuse le samedi"             # un seul test, par son nom
 
+npm run accueil              # vérifie l'installation (commande /accueil) ; n'affiche jamais une valeur de .env
 cp .env.example .env         # puis renseigner STRIPE_SECRET_KEY (clé de test)
 npx prisma migrate dev       # crée dev.db et applique les migrations
 npx prisma migrate dev --name <changement>       # après modification du schéma
@@ -70,7 +71,9 @@ Texte exact du cahier des charges ; le code y renvoie par leur numéro (« R1 »
 Permissions définies dans `.claude/settings.json` (partagé via git, donc valables pour tout le monde). Ordre d'évaluation : `deny` l'emporte sur `ask`, qui l'emporte sur `allow`.
 
 - **Autorisé sans confirmation** : `npm run lint`, `npm test`, `npx vitest` (avec ou sans arguments), `git status`, `git diff`, `git log` (lecture seule).
-- **Toujours refusé** : `git push --force` et `git push -f`, `rm -rf` et `rm -fr`, et la lecture de `.env` (secrets ; s'appuyer sur `.env.example`).
+- **Toujours refusé** : le push forcé, `rm -rf` et `rm -fr`, la lecture de `.env` (secrets ; s'appuyer sur `.env.example`), l'écriture dans la base par le serveur MCP `sqlite`.
 - **Confirmation demandée** : tout autre `git push`, et `git reset --hard`.
 
-Ces règles portent sur des formes exactes de commande (préfixe) : une autre écriture (`git push origin main --force`, `rm -r -f`) n'est pas couverte par le refus. Ne pas chercher à les contourner ; demander à l'utilisateur.
+Les règles de permission comparent des motifs de commande : une autre écriture peut leur échapper. Les cas graves sont donc aussi bloqués par des hooks `PreToolUse` qui découpent la commande comme le shell (ordre des mots, `bash -c`, `eval`, `$(…)`) : `proteger-push.mjs` (push forcé : `--force`, `--force-with-lease`, `-f` même groupé comme `-uf`, `--mirror`, `+branche`), `proteger-base.mjs` (remise à zéro de `dev.db`), `proteger-migrations.sh` (migration existante). `rm -r -f` reste seulement couvert par le motif. Ne pas chercher à contourner une règle ; demander à l'utilisateur.
+
+Réglages personnels : `.claude/settings.local.json` et `CLAUDE.local.md` (ignorés par git). Guide pour les nouveaux venus : `CLAUDE-CODE-EQUIPE.md`.

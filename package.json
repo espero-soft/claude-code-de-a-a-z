@@ -13,6 +13,7 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
     "revue": "node scripts/revue.mjs",
+    "accueil": "node scripts/accueil.mjs",
     "premier-appel": "tsx scripts/premier-appel.ts",
     "agent-outil": "tsx scripts/agent-outil.ts",
     "cache-prompt": "tsx scripts/cache-prompt.ts",

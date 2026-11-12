@@ -52,6 +52,11 @@ dev.db
 *.tsbuildinfo
 next-env.d.ts
 
+# Claude Code : réglages et instructions personnels, jamais partagés
+# (les réglages communs sont dans .claude/settings.json et CLAUDE.md)
+.claude/settings.local.json
+CLAUDE.local.md
+
 # Captures du serveur MCP Playwright
 .playwright-mcp/
 
