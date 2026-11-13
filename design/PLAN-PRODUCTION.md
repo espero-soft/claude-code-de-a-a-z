@@ -346,6 +346,9 @@ Contrôles faits, en plus de ceux de la liste ci-dessous : `/api/sante` répond 
 - `GET /salles/inexistante` doit répondre 404.
 - `GET /compte` sans cookie doit répondre 307 vers `/connexion`.
 - `GET /admin` sans cookie doit aussi répondre 307 vers `/connexion`.
+- `GET /` ne doit pas porter d'en-tête `X-Powered-By` (`poweredByHeader: false`).
+
+Chaque version est contrôlée par **son propre** `fumee.sh` (`fumee_de`, `commun.sh`) : à la livraison, celui de la version livrée ; au retour arrière, celui de la version retrouvée, qui n'exige pas ce qu'une version plus récente a ajouté.
 
 Aucune écriture, aucun compte créé, aucun e-mail envoyé.
 
@@ -392,5 +395,6 @@ Recréer un VPS (sections 3 et 4), déployer la dernière étiquette, restaurer 
 | D16 | Livraison | Manuelle | `deployer.sh` |
 | D17 | Préproduction | Non | |
 | D18 | Mode WAL | Non | |
+| D19 | Démonstration publique dans la durée | Remise à zéro chaque nuit à 2 h 30 (Paris) : toutes les réservations et les comptes clients effacés, après une sauvegarde ; jamais les salles, le personnel ni le journal des connexions. Pas de rattrapage au démarrage. Annoncé sur `/demonstration`. | `remettreAZeroDemo`, `reunea-remise-a-zero.timer`, `LISEZMOI.md`, section 5 |
 
 Le serveur sera **supprimé après le tournage**. Avant de le supprimer, récupérer une dernière sauvegarde si besoin ; la copie locale contient des données personnelles et se supprime à son tour.

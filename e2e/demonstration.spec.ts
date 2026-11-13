@@ -33,6 +33,7 @@ test("présente le site de démonstration depuis la navigation", async ({ page }
   }
   await expect(page.getByText("4242 4242 4242 4242")).toBeVisible();
   await expect(page.getByText(/effacées au bout de 90 jours/)).toBeVisible();
+  await expect(page.getByText(/Chaque nuit, les réservations et les comptes clients sont effacés/)).toBeVisible();
 });
 
 test("affiche le bandeau de démonstration sur chaque page, avec un lien vers ses détails", async ({
