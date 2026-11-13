@@ -207,7 +207,10 @@ describe("restaurer-base.sh", () => {
 
 describe("fumee.sh", () => {
   let serveur: Server;
-  let reponses: Record<string, { statut: number; corps?: string; location?: string }>;
+  let reponses: Record<
+    string,
+    { statut: number; corps?: string; location?: string; entetes?: Record<string, string> }
+  >;
 
   beforeEach(async () => {
     reponses = {
@@ -221,7 +224,10 @@ describe("fumee.sh", () => {
     };
     serveur = createServer((requete, reponse) => {
       const prevue = reponses[requete.url ?? ""] ?? { statut: 500 };
-      reponse.writeHead(prevue.statut, prevue.location ? { location: prevue.location } : {});
+      reponse.writeHead(prevue.statut, {
+        ...(prevue.location ? { location: prevue.location } : {}),
+        ...prevue.entetes,
+      });
       reponse.end(prevue.corps ?? "");
     });
     await new Promise<void>((resoudre) => serveur.listen(0, "127.0.0.1", resoudre));
@@ -260,6 +266,21 @@ describe("fumee.sh", () => {
     const resultat = await lancer("fumee.sh", [adresse()], { REUNEA_ATTENTE_SECONDES: "1" });
     expect(resultat.code).not.toBe(0);
     expect(resultat.sortie).toContain("ÉCHEC   accès : /compte");
+  });
+
+  it("échoue si le serveur annonce X-Powered-By", async () => {
+    reponses["/"] = { statut: 200, corps: "Réunéa", entetes: { "X-Powered-By": "Next.js" } };
+    const resultat = await lancer("fumee.sh", [adresse()], { REUNEA_ATTENTE_SECONDES: "1" });
+    expect(resultat.code).not.toBe(0);
+    expect(resultat.sortie).toContain("ÉCHEC   en-têtes : pas de X-Powered-By");
+  });
+
+  it("ne valide pas l'absence de X-Powered-By quand le serveur ne répond pas", async () => {
+    const fermee = adresse();
+    await new Promise((resoudre) => serveur.close(resoudre));
+    const resultat = await lancer("fumee.sh", [fermee], { REUNEA_ATTENTE_SECONDES: "1" });
+    expect(resultat.code).not.toBe(0);
+    expect(resultat.sortie).toMatch(/ÉCHEC\s+en-têtes : pas de X-Powered-By \(obtenu : pas de réponse/);
   });
 });
 
@@ -310,6 +331,22 @@ describe("revenir.sh", () => {
     symlinkSync(join(releases, "ccccccc3"), join(dossier, "srv", "current"));
     expect((await lancer("revenir.sh", ["aaaaaaa"], { REUNEA_FUMEE: join(bin, "fumee-ok") })).code).toBe(0);
     expect(courante()).toBe(join(releases, "aaaaaaa1"));
+  });
+
+  it("contrôle la version retrouvée avec son propre fumee.sh, pas celui de la version quittée", async () => {
+    const releases = creerVersions("aaaaaaa1", "bbbbbbb2");
+    for (const version of ["aaaaaaa1", "bbbbbbb2"]) {
+      mkdirSync(join(releases, version, "scripts", "production"), { recursive: true });
+      writeFileSync(
+        join(releases, version, "scripts", "production", "fumee.sh"),
+        `echo "fumee de ${version}" >> "${appels}"\n`,
+      );
+    }
+    symlinkSync(join(releases, "bbbbbbb2"), join(dossier, "srv", "current"));
+
+    const resultat = await lancer("revenir.sh", []);
+    expect(resultat.code, resultat.sortie).toBe(0);
+    expect(journalAppels()).toEqual(["systemctl restart reunea", "fumee de aaaaaaa1"]);
   });
 
   it("refuse s'il n'y a aucune version vers laquelle revenir", async () => {
@@ -477,6 +514,25 @@ describe("deployer.sh", () => {
       "systemctl restart reunea",
       "systemctl restart reunea",
     ]);
+  });
+
+  it("contrôle la version livrée avec son propre fumee.sh", async () => {
+    // Nouvelle version qui apporte son contrôle de fumée, étiquetée et poussée.
+    const origine = join(dossier, "origine");
+    git(origine, "checkout", "--quiet", BRANCHE);
+    mkdirSync(join(origine, "scripts", "production"), { recursive: true });
+    const sha = commit(
+      origine,
+      join("scripts", "production", "fumee.sh"),
+      `echo "fumee livrée" >> "${appels}"`,
+    );
+    git(origine, "tag", "-a", "v2026.11.13-1", "-m", "Avec son contrôle");
+    git(origine, "checkout", "--quiet", "main");
+
+    const resultat = await lancer("deployer.sh", ["v2026.11.13-1", BRANCHE]);
+    expect(resultat.code, resultat.sortie).toBe(0);
+    expect(courante()).toBe(join(dossier, "srv", "releases", sha));
+    expect(journalAppels().at(-1)).toBe("fumee livrée");
   });
 
   it("refuse de relivrer la version déjà en service", async () => {

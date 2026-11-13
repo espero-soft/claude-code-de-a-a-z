@@ -46,6 +46,16 @@ verifier "démonstration : /demonstration répond 200" "$(code_http /demonstrati
 verifier "404 : salle inconnue" "$(code_http /salles/salle-inconnue)" "404"
 verifier "accès : /compte sans session renvoie vers la connexion" "$(code_http /compte)" "307"
 verifier "accès : /admin sans session renvoie vers la connexion" "$(code_http /admin)" "307"
+# En-têtes de la page d'accueil (next.config.ts : poweredByHeader: false).
+entetes="$(curl -s -D - -o /dev/null --max-time 10 "$adresse/" || true)"
+if ! printf '%s\n' "$entetes" | grep -q '^HTTP/'; then
+  powered="pas de réponse"   # sans réponse, l'absence de l'en-tête ne prouve rien
+elif printf '%s\n' "$entetes" | grep -qi '^x-powered-by:'; then
+  powered="présent"
+else
+  powered="absent"
+fi
+verifier "en-têtes : pas de X-Powered-By" "$powered" "absent"
 
 if [ "$echecs" -gt 0 ]; then
   echo "Contrôle de fumée : $echecs échec(s)." >&2
