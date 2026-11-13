@@ -55,7 +55,7 @@ const POINTS: { icone: ReactNode; titre: string; texte: ReactNode }[] = [
     icone: <IconeSablier />,
     titre: "Un site temporaire",
     texte:
-      "Réunéa est le projet fil rouge d'une formation. Le serveur et toutes ses données seront supprimés à la fin du tournage.",
+      "Réunéa est le projet fil rouge d'une formation. Chaque nuit, les réservations et les comptes clients sont effacés : le site repart à neuf le matin. Le serveur et toutes ses données seront supprimés à la fin du tournage.",
   },
 ];
 

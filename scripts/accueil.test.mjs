@@ -15,6 +15,7 @@ import {
   verifierShellStripe,
   verifierTests,
 } from "./accueil.mjs";
+import { cleAnthropicFactice, cleStripeFactice } from "../src/lib/cles-factices.ts";
 
 const EXEMPLE = `# Copier ce fichier en .env
 DATABASE_URL="file:./dev.db"
@@ -27,9 +28,11 @@ ANTHROPIC_API_KEY=
 ADMIN_EMAIL=
 `;
 
-const CLE_STRIPE = "sk_test_51SecretTresSecretNePasAfficher";
+// Fausses clés assemblées à l'exécution (src/lib/cles-factices.ts) : même
+// préfixe qu'une vraie, corps reconnaissable, rien qui ressemble à une clé dans le dépôt.
+const CLE_STRIPE = cleStripeFactice("sk", "test", "FacticeNePasAfficher");
 const SECRET_AUTH = "CeSecretFaitBienPlusDeTrenteDeuxCaracteres==";
-const CLE_CLAUDE = "sk-ant-api03-SecretClaudeNePasAfficher";
+const CLE_CLAUDE = cleAnthropicFactice("FacticeNePasAfficher");
 
 const envComplet = (remplacements = {}) => {
   const valeurs = {
@@ -75,28 +78,33 @@ describe("verifierEnv", () => {
   test("n'affiche jamais une valeur de .env, quel que soit le cas", () => {
     const cas = [
       envComplet(),
-      envComplet({ STRIPE_SECRET_KEY: "sk_live_SecretTresSecretNePasAfficher" }),
-      envComplet({ STRIPE_SECRET_KEY: "pk_test_SecretTresSecretNePasAfficher" }),
+      envComplet({ STRIPE_SECRET_KEY: cleStripeFactice("sk", "live", "FacticeNePasAfficher") }),
+      envComplet({ STRIPE_SECRET_KEY: cleStripeFactice("pk", "test", "FacticeNePasAfficher") }),
       envComplet({ BETTER_AUTH_SECRET: "CourtSecretNePasAfficher" }),
       envComplet({ DATABASE_URL: "postgres://utilisateur:MotDePasseNePasAfficher@hote/base" }),
     ];
     for (const texte of cas) {
       const sortie = JSON.stringify(verifierEnv(texte, EXEMPLE));
-      expect(sortie).not.toMatch(/NePasAfficher|SecretTresSecret|PlusDeTrente/);
+      expect(sortie).not.toMatch(/NePasAfficher|PlusDeTrente/);
     }
   });
 
   test("clé Stripe : vide, valeur d'exemple, live et mauvais format sont à faire", () => {
-    for (const valeur of ["", '"sk_test_..."', "sk_live_abc", "pk_test_abc"]) {
+    for (const valeur of [
+      "",
+      '"sk_test_..."',
+      cleStripeFactice("sk", "live"),
+      cleStripeFactice("pk", "test"),
+    ]) {
       const resultats = verifierEnv(envComplet({ STRIPE_SECRET_KEY: valeur }), EXEMPLE);
       expect(etatDe(resultats, ".env STRIPE_SECRET_KEY")).toBe(A_FAIRE);
     }
-    const live = verifierEnv(envComplet({ STRIPE_SECRET_KEY: "sk_live_abc" }), EXEMPLE);
+    const live = verifierEnv(envComplet({ STRIPE_SECRET_KEY: cleStripeFactice("sk", "live") }), EXEMPLE);
     expect(live.find((r) => r.nom === ".env STRIPE_SECRET_KEY").detail).toMatch(/LIVE/);
   });
 
   test("clé restreinte de test (rk_test_) acceptée, comme dans src/lib/stripe.ts", () => {
-    const resultats = verifierEnv(envComplet({ STRIPE_SECRET_KEY: "rk_test_abc" }), EXEMPLE);
+    const resultats = verifierEnv(envComplet({ STRIPE_SECRET_KEY: cleStripeFactice("rk", "test") }), EXEMPLE);
     expect(etatDe(resultats, ".env STRIPE_SECRET_KEY")).toBe(OK);
   });
 

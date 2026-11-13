@@ -1,0 +1,24 @@
+# Remise à zéro nocturne de la démonstration publique, lancée par
+# reunea-remise-a-zero.timer. Copié dans /etc/systemd/system/.
+# Efface réservations et comptes clients ; jamais les salles, le personnel
+# ni le journal (src/lib/remise-a-zero-demo.ts).
+# Résultat : journalctl -u reunea-remise-a-zero ; échec dans systemctl --failed.
+[Unit]
+Description=Remise à zéro de la démonstration Réunéa
+
+[Service]
+Type=oneshot
+User=reunea
+Group=reunea
+WorkingDirectory=/srv/reunea/current
+Environment=NODE_ENV=production
+# D'abord une sauvegarde (horaire, gardée 48 h) : si elle échoue, rien n'est effacé.
+ExecStartPre=/bin/bash /srv/reunea/current/scripts/production/sauvegarder-base.sh
+# tsx directement (pas npm : il voudrait écrire son cache dans HOME).
+ExecStart=/srv/reunea/current/node_modules/.bin/tsx scripts/remettre-a-zero-demo.ts --confirmer
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/reunea /var/backups/reunea
+UMask=0027

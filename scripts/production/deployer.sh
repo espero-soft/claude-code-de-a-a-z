@@ -15,7 +15,8 @@
 # 2. extrait la version dans releases/<sha>, lie .env, `npm ci` et build
 #    (l'ancienne version sert toujours ; un échec ici ne touche à rien) ;
 # 3. sauvegarde la base, puis `prisma migrate deploy` ;
-# 4. bascule `current`, redémarre le service, contrôle de fumée ;
+# 4. bascule `current`, redémarre le service, contrôle de fumée (celui de la
+#    version livrée, fumee_de dans commun.sh) ;
 #    en cas d'échec, retour automatique à la version précédente.
 #
 # Étiquettes : v<année>.<mois>.<jour>-<n> (décision D15).
@@ -34,7 +35,6 @@ branche="${2:-}"
 DEPOT="$REUNEA_RACINE/repo"
 [ -d "$DEPOT/.git" ] || echouer "dépôt absent : $DEPOT (voir deploiement/LISEZMOI.md, section 3)"
 [ -f "$REUNEA_ENV" ] || echouer "secrets absents : $REUNEA_ENV (modèle : deploiement/reunea.env.example)"
-FUMEE="${REUNEA_FUMEE:-$DOSSIER_SCRIPTS/fumee.sh}"
 SAUVEGARDER="${REUNEA_SAUVEGARDER:-$DOSSIER_SCRIPTS/sauvegarder-base.sh}"
 
 # git sous l'utilisateur du service, propriétaire du dépôt : en root, git
@@ -91,7 +91,7 @@ basculer_vers "$destination"
 en_service touch "$destination"
 service restart
 
-if bash "$FUMEE"; then
+if bash "$(fumee_de "$destination")"; then
   noter_livraison "livraison $etiquette $sha ($branche)"
   etape "$etiquette est en service."
 else
@@ -101,7 +101,7 @@ else
     en_service touch "$destination/.retiree"
     service restart
     noter_livraison "echec $etiquette $sha ($branche), retour $(basename "$precedente")"
-    bash "$FUMEE" || true
+    bash "$(fumee_de "$precedente")" || true
   else
     noter_livraison "echec $etiquette $sha ($branche, premier déploiement, rien vers quoi revenir)"
   fi

@@ -1,0 +1,15 @@
+# Chaque nuit à 2 h 30, heure de Paris (centre fermé, avant le redémarrage
+# automatique de 03:00 UTC). Copié dans /etc/systemd/system/, puis :
+#   sudo systemctl enable --now reunea-remise-a-zero.timer
+#   systemctl list-timers reunea-remise-a-zero.timer     # prochaine exécution
+[Unit]
+Description=Remise à zéro nocturne de la démonstration Réunéa
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Europe/Paris
+# Pas de rattrapage : un serveur rallumé en pleine journée ne doit pas
+# vider la démonstration sous les yeux d'un visiteur.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

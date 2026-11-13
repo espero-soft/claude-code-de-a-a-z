@@ -61,6 +61,21 @@ version_courante() {
   if [ -L "$COURANTE" ]; then readlink "$COURANTE"; fi
 }
 
+# Contrôle de fumée d'une version : le sien, celui qu'elle a livré avec son
+# code, car il décrit ce que CETTE version doit faire (une version plus
+# récente peut vérifier un en-tête que l'ancienne envoie encore). À défaut,
+# celui du script lancé. REUNEA_FUMEE l'emporte (tests).
+fumee_de() {
+  local version="$1"
+  if [ -n "${REUNEA_FUMEE:-}" ]; then
+    echo "$REUNEA_FUMEE"
+  elif [ -f "$version/scripts/production/fumee.sh" ]; then
+    echo "$version/scripts/production/fumee.sh"
+  else
+    echo "$DOSSIER_SCRIPTS/fumee.sh"
+  fi
+}
+
 noter_livraison() {
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*" >>"$JOURNAL_LIVRAISONS"
 }

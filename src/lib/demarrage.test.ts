@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { cleStripeFactice } from "./cles-factices";
 import { erreurConfiguration } from "./demarrage";
 
 const INCOMPLETE = { NODE_ENV: "production", NEXT_RUNTIME: "nodejs", SMTP_MOT_DE_PASSE: "cle-secrete" };
@@ -33,7 +34,7 @@ describe("erreurConfiguration", () => {
         SMTP_UTILISATEUR: "identifiant",
         SMTP_MOT_DE_PASSE: "cle",
         COURRIEL_EXPEDITEUR: "Réunéa <ne-pas-repondre@exemple.fr>",
-        STRIPE_SECRET_KEY: "rk_test_abc",
+        STRIPE_SECRET_KEY: cleStripeFactice("rk", "test"),
       }),
     ).toBeNull();
   });

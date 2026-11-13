@@ -11,7 +11,6 @@
 set -euo pipefail
 DOSSIER_SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
 source "$DOSSIER_SCRIPTS/commun.sh"
-FUMEE="${REUNEA_FUMEE:-$DOSSIER_SCRIPTS/fumee.sh}"
 
 courante="$(version_courante)"
 [ -n "$courante" ] || echouer "aucune version en service ($COURANTE)"
@@ -40,4 +39,6 @@ en_service touch "$cible"
 rm -f "$cible/.retiree"
 service restart
 noter_livraison "retour $(basename "$courante") vers $(basename "$cible")"
-bash "$FUMEE"
+# Contrôle de fumée de la version retrouvée : le sien, pas celui de la
+# version quittée, qui peut exiger ce que l'ancienne ne fait pas encore.
+bash "$(fumee_de "$cible")"

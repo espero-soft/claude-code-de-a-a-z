@@ -11,6 +11,7 @@ Les commandes d'installation de Node.js et de Caddy changent avec le temps : les
 | `Caddyfile` | `/etc/caddy/Caddyfile` (domaine dans `REUNEA_DOMAINE`) |
 | `reunea.service` | `/etc/systemd/system/` |
 | `reunea-sauvegarde.service`, `reunea-sauvegarde.timer` | `/etc/systemd/system/` |
+| `reunea-remise-a-zero.service`, `reunea-remise-a-zero.timer` | `/etc/systemd/system/` (démonstration remise à zéro chaque nuit) |
 | `reunea.env.example` | modèle de `/etc/reunea/reunea.env`, rempli à la main |
 
 Les scripts sont dans [`scripts/production/`](../scripts/production/), et leurs tests dans `production.test.ts`. Ils tournent sur le serveur, sauf `recuperer-sauvegarde.sh`, qui tourne sur le poste.
@@ -81,7 +82,8 @@ sudo install -o root -g reunea -m 640 /srv/reunea/repo/deploiement/reunea.env.ex
 sudo nano /etc/reunea/reunea.env
 
 # Services.
-sudo cp /srv/reunea/repo/deploiement/reunea.service /srv/reunea/repo/deploiement/reunea-sauvegarde.* /etc/systemd/system/
+sudo cp /srv/reunea/repo/deploiement/reunea.service /srv/reunea/repo/deploiement/reunea-sauvegarde.* \
+  /srv/reunea/repo/deploiement/reunea-remise-a-zero.* /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable reunea
 
 # Caddy, avec le domaine.
@@ -116,7 +118,7 @@ sudo bash /srv/reunea/repo/scripts/production/deployer.sh v2026.11.12-1 module-1
 cd /srv/reunea/current
 sudo -u reunea -H npm run db:seed                      # salles seulement : pas de réservation de démonstration en production
 sudo -u reunea -H npm run admin:creer -- <e-mail>      # puis connexion par code et enrôlement TOTP
-sudo systemctl enable --now reunea-sauvegarde.timer
+sudo systemctl enable --now reunea-sauvegarde.timer reunea-remise-a-zero.timer
 bash scripts/production/fumee.sh https://<sous-domaine>
 ```
 
@@ -134,5 +136,19 @@ Faire ensuite la **recette** décrite dans `design/PLAN-PRODUCTION.md`, section 
 | Copie sur le poste | (sur le poste) `bash scripts/production/recuperer-sauvegarde.sh <admin>@<serveur>` |
 | Restaurer | `sudo systemctl stop reunea`, puis `sudo bash …/restaurer-base.sh <fichier>` (le script donne la suite) |
 | Historique des livraisons | `cat /srv/reunea/livraisons.log` |
+| Remise à zéro de la démonstration | chaque nuit à 2 h 30 (Paris) ; prochaine : `systemctl list-timers reunea-remise-a-zero.timer` ; résultat : `journalctl -u reunea-remise-a-zero` ; à la demande : `sudo systemctl start reunea-remise-a-zero` |
+
+### Installer la remise à zéro nocturne sur un serveur déjà en service
+
+Une fois livrée une version qui contient `scripts/remettre-a-zero-demo.ts` (le service lance celle de `current`) :
+
+```bash
+sudo cp /srv/reunea/current/deploiement/reunea-remise-a-zero.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now reunea-remise-a-zero.timer
+systemctl list-timers reunea-remise-a-zero.timer
+```
+
+Elle efface **toutes les réservations** et **les comptes clients** (sessions, codes, tickets de leur adresse), après une sauvegarde de la base (`ExecStartPre`, gardée 48 h). Elle ne touche jamais aux salles, aux comptes du personnel (employés, administrateurs) ni au journal des connexions. Un paiement Stripe de test laissé ouvert au moment de l'effacement n'a plus de réservation : rien n'est prélevé (mode test).
 
 **Jamais** sur le serveur : `prisma migrate dev`, `npm run db:reset`, ni les tests Playwright. Ils écrivent dans la base et attendent Mailpit.
