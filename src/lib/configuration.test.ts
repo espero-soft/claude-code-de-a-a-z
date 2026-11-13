@@ -6,6 +6,7 @@ import {
   reservationDemoAutorisee,
   verifierConfiguration,
 } from "./configuration";
+import { cleStripeFactice } from "./cles-factices";
 
 // Configuration complète et valable d'un serveur de production (valeurs factices).
 const PRODUCTION = {
@@ -18,7 +19,7 @@ const PRODUCTION = {
   SMTP_UTILISATEUR: "identifiant",
   SMTP_MOT_DE_PASSE: "cle-smtp-tres-secrete",
   COURRIEL_EXPEDITEUR: "Réunéa <ne-pas-repondre@exemple.fr>",
-  STRIPE_SECRET_KEY: "rk_test_abc",
+  STRIPE_SECRET_KEY: cleStripeFactice("rk", "test"),
 };
 
 describe("adressePublique", () => {
@@ -99,7 +100,7 @@ describe("modeTls et optionsSmtp", () => {
 describe("verifierConfiguration", () => {
   it("accepte une configuration de production complète", () => {
     expect(verifierConfiguration(PRODUCTION)).toEqual([]);
-    expect(verifierConfiguration({ ...PRODUCTION, STRIPE_SECRET_KEY: "sk_test_abc" })).toEqual([]);
+    expect(verifierConfiguration({ ...PRODUCTION, STRIPE_SECRET_KEY: cleStripeFactice("sk", "test") })).toEqual([]);
   });
 
   it("signale chaque variable manquante, par son nom", () => {
@@ -128,8 +129,8 @@ describe("verifierConfiguration", () => {
     ["SMTP_TLS", { SMTP_TLS: "peut-etre" }],
     ["SMTP_PORT", { SMTP_PORT: "99999" }],
     ["COURRIEL_EXPEDITEUR", { COURRIEL_EXPEDITEUR: "Réunéa <ne-pas-repondre@reunea.test>" }],
-    ["STRIPE_SECRET_KEY", { STRIPE_SECRET_KEY: "sk_live_abc" }],
-    ["STRIPE_SECRET_KEY", { STRIPE_SECRET_KEY: "rk_live_abc" }],
+    ["STRIPE_SECRET_KEY", { STRIPE_SECRET_KEY: cleStripeFactice("sk", "live") }],
+    ["STRIPE_SECRET_KEY", { STRIPE_SECRET_KEY: cleStripeFactice("rk", "live") }],
   ])("refuse une valeur inadaptée de %s", (nom, changement) => {
     const problemes = verifierConfiguration({ ...PRODUCTION, ...changement });
     expect(problemes).toHaveLength(1);
@@ -141,12 +142,12 @@ describe("verifierConfiguration", () => {
       ...PRODUCTION,
       BETTER_AUTH_SECRET: "secret-court-123",
       SMTP_MOT_DE_PASSE: "",
-      STRIPE_SECRET_KEY: "sk_live_valeur-secrete",
+      STRIPE_SECRET_KEY: cleStripeFactice("sk", "live", "FacticeValeurSecrete"),
       DATABASE_URL: "postgres://utilisateur:motdepasse@hote/base",
     };
     const texte = verifierConfiguration(secrets).join("\n");
     expect(texte).not.toContain("secret-court-123");
-    expect(texte).not.toContain("valeur-secrete");
+    expect(texte).not.toContain("FacticeValeurSecrete");
     expect(texte).not.toContain("motdepasse");
   });
 });
